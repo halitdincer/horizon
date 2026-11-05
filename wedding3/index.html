@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Hilal &amp; Halit</title>
+  <meta name="theme-color" content="#ebe3d6" />
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="apple-touch-icon" href="favicon.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Great+Vibes&family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    :root{
+      --frame:#ebe3d6;
+      --font-serif:"Cormorant Garamond",Georgia,serif;
+      --font-script:"Great Vibes",cursive;
+      --font-sans:"Montserrat",system-ui,sans-serif;
+      --ease:cubic-bezier(.22,.61,.36,1);
+
+      /* gold foil: a moving specular hotspot over anisotropic brushed-gold bands.
+         Each layer is 200vw x 200vh; JS slides it so the hotspot sits under the "light". */
+      --foil:
+        /* kept in the mid-gold range (nothing near the paper colour) so text stays readable at peak shine */
+        radial-gradient(circle 24vmax at 50% 50%, rgba(196,156,72,.5), rgba(196,156,72,.22) 35%, rgba(196,156,72,0) 70%),
+        linear-gradient(112deg,
+          #4f3912 0%, #7a5a22 9%, #a07c36 16%, #6e5120 24%, #93712f 32%, #ad8840 40%,
+          #80612a 47%, #5a4218 53%, #8a6a2c 60%, #a8853d 67%, #735626 75%, #9a7834 84%, #573f16 92%, #7f5f27 100%);
+    }
+    *,*::before,*::after{ box-sizing:border-box; }
+    html,body{ height:100%; margin:0; }
+    html{ -webkit-text-size-adjust:100%; background:var(--frame); }
+    body{
+      font-family:var(--font-sans); line-height:1.6; overflow:hidden; touch-action:none;
+      background:var(--frame) url("bg-empty.jpg") center center / cover fixed;
+    }
+    p{ margin:0; }
+
+    /* ---- responsive stage (same frame/inset system as the wedding site) ---- */
+    .deck{
+      position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+      aspect-ratio:var(--arn);
+      width:max(100vw, calc(100vh * var(--arn)));
+      width:max(100vw, calc(100dvh * var(--arn)));
+      background:var(--frame) center center / 100% 100% no-repeat; background-image:url("bg-9x16.jpg");
+    }
+    .panel{
+      position:absolute; top:var(--pt); right:var(--px); bottom:var(--pb); left:var(--px);
+      display:flex; justify-content:center; overflow:hidden; text-align:center;
+      padding:clamp(.35rem,1.4vh,1.2rem) clamp(.35rem,2vw,1rem);
+    }
+    :root{ --arn:.563; --pt:14%; --pb:14%; --px:13.5%; }
+    @media (max-aspect-ratio:1/2){ :root{ --arn:.45; --pt:13%; --pb:13%; --px:13%; } .deck{ background-image:url("bg-9x20.jpg"); } }
+    @media (min-aspect-ratio:65/100){ :root{ --arn:.75;  --pt:15.5%; --pb:15.5%; --px:12%; } .deck{ background-image:url("bg-3x4.jpg"); } }
+    @media (min-aspect-ratio:1/1){    :root{ --arn:1.333; --pt:13%; --pb:13.5%; --px:16.5%; } .deck{ background-image:url("bg-4x3.jpg"); } }
+    @media (min-aspect-ratio:155/100){ :root{ --arn:1.777; --pt:13%; --pb:12.5%; --px:15.5%; } .deck{ background-image:url("bg-16x9.jpg"); } }
+    @media (max-height:720px){ :root{ --pt:9%; --pb:9%; } }
+
+    /* ---- hero (panel 1 of the wedding site) ---- */
+    .inner{ width:100%; max-width:33rem; height:100%; }
+    .spread{ display:flex; flex-direction:column; justify-content:space-between; align-items:center; height:100%; gap:1.2rem; }
+    .mid{ display:flex; flex-direction:column; align-items:center; gap:clamp(.8rem,2.5vh,1.5rem); }
+    .foot{ display:flex; flex-direction:column; align-items:center; padding-bottom:clamp(.6rem,3vh,2rem); }
+    .invite{ font-family:var(--font-serif); font-weight:600; font-size:clamp(.82rem,2vw,1.02rem); letter-spacing:.18em; text-indent:.18em; text-transform:uppercase; line-height:1.95; max-width:30rem; margin-inline:auto; margin-top:clamp(2rem,8vh,5rem); }
+    .fams{ display:flex; justify-content:center; gap:clamp(1.1rem,5.5vw,5.5rem); }
+    .fam{ font-family:var(--font-serif); font-weight:600; font-size:clamp(.95rem,2.5vw,1.18rem); letter-spacing:.16em; text-indent:.16em; text-transform:uppercase; }
+    .name{ display:block; white-space:nowrap; font-family:var(--font-script); font-size:clamp(2.9rem,11.5vw,6rem); line-height:1.42; padding:.2em .25em; margin:.15rem 0; }
+    .name .amp{ margin:0 .05em; }
+    .date{ font-weight:600; font-size:clamp(.72rem,1.9vw,.86rem); letter-spacing:.3em; text-indent:.3em; }
+    .venue{ font-weight:500; font-size:clamp(.6rem,1.5vw,.72rem); letter-spacing:.26em; text-indent:.26em; margin-top:.7rem; }
+    .divider{ width:clamp(8rem,42vw,13rem); aspect-ratio:760/260; margin:0 auto 1.1rem; }
+
+    /* ---- the shine ---- */
+    .foil{
+      color:#9c7631; /* fallback if background-clip:text is unsupported */
+      background-image:var(--foil);
+      background-size:200vw 200vh, 200vw 200vh;
+      background-repeat:no-repeat;
+      background-position:var(--bx,-50vw) var(--by,-50vh);
+      -webkit-background-clip:text; background-clip:text;
+      -webkit-text-fill-color:transparent; color:transparent;
+      filter:drop-shadow(0 .6px .5px rgba(50,32,8,.4));
+    }
+    .foil.divider{
+      -webkit-background-clip:border-box; background-clip:border-box;
+      -webkit-mask:url("divider.png") center / contain no-repeat; mask:url("divider.png") center / contain no-repeat;
+    }
+
+    /* entrance */
+    .fade{ animation:soft 1.7s cubic-bezier(.19,1,.22,1) both; animation-delay:var(--d,0s); }
+    @keyframes soft{ from{ opacity:0; transform:translateY(12px); } to{ opacity:1; transform:none; } }
+
+    /* tilt hint */
+    .hint{ position:fixed; left:0; right:0; bottom:calc(env(safe-area-inset-bottom,0px) + clamp(.8rem,3vh,1.6rem)); z-index:5;
+      margin-inline:auto; width:fit-content; max-width:calc(100% - 32px);
+      font:600 .66rem/1.4 var(--font-sans); letter-spacing:.2em; text-transform:uppercase; text-align:center;
+      color:#5a4a2c; background:rgba(235,227,214,.82); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
+      border:1px solid rgba(90,74,44,.18); border-radius:999px; padding:.6rem 1.1rem; cursor:pointer;
+      transition:opacity .6s var(--ease); }
+    .hint[hidden]{ display:block; opacity:0; pointer-events:none; }
+
+    /* shine settings: gear in the corner, opens on hover (desktop) or tap (phone) */
+    .tune{ position:fixed; top:calc(env(safe-area-inset-top,0px) + 12px); right:calc(env(safe-area-inset-right,0px) + 12px); z-index:6;
+      font:500 .72rem/1.3 var(--font-sans); color:#3f3220; touch-action:auto; }
+    .tune__btn{ width:40px; height:40px; margin-left:auto; display:grid; place-items:center; border-radius:999px; cursor:pointer;
+      background:rgba(235,227,214,.82); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
+      border:1px solid rgba(90,74,44,.18); color:#5a4a2c; padding:0; }
+    .tune__btn svg{ width:18px; height:18px; }
+    .tune__btn:focus-visible{ outline:2px solid #8a6a2c; outline-offset:2px; }
+    .tune__menu{ position:absolute; top:46px; right:0; width:min(15.5rem, calc(100vw - 24px)); padding:.9rem 1rem 1rem;
+      background:rgba(244,238,228,.94); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px);
+      border:1px solid rgba(90,74,44,.18); border-radius:14px; box-shadow:0 8px 28px rgba(50,32,8,.16);
+      opacity:0; visibility:hidden; transform:translateY(-4px); transition:opacity .2s var(--ease), transform .2s var(--ease), visibility 0s linear .2s; }
+    .tune.open .tune__menu{ opacity:1; visibility:visible; transform:none; transition:opacity .2s var(--ease), transform .2s var(--ease); }
+    @media (hover:hover){ .tune:hover .tune__menu{ opacity:1; visibility:visible; transform:none; transition:opacity .2s var(--ease), transform .2s var(--ease); } }
+    .tune label{ display:block; margin-top:.7rem; }
+    .tune label:first-child{ margin-top:0; }
+    .tune__row{ display:flex; justify-content:space-between; letter-spacing:.06em; text-transform:uppercase; font-weight:600; font-size:.62rem; }
+    .tune__row output{ font-variant-numeric:tabular-nums; opacity:.7; }
+    .tune input[type=range]{ width:100%; margin:.35rem 0 0; accent-color:#8a6a2c; }
+    .tune__reset{ margin-top:.9rem; width:100%; font:600 .62rem/1 var(--font-sans); letter-spacing:.12em; text-transform:uppercase;
+      padding:.6rem; border-radius:999px; border:1px solid rgba(90,74,44,.3); background:transparent; color:#5a4a2c; cursor:pointer; }
+
+    /* relit embossing: a WebGL copy of the frame image drawn over the CSS one once it's ready */
+    .relief{ position:absolute; inset:0; width:100%; height:100%; display:block; opacity:0; transition:opacity .6s var(--ease); }
+    .relief.ready{ opacity:1; }
+    .tune__menu{ max-height:calc(100vh - 80px); overflow-y:auto; }
+    .tune__sep{ margin:.9rem 0 0; padding-top:.7rem; border-top:1px solid rgba(90,74,44,.15); font-size:.58rem; letter-spacing:.14em; text-transform:uppercase; opacity:.55; }
+
+    @media (prefers-reduced-motion:reduce){ .fade{ animation:none; } }
+  </style>
+</head>
+<body>
+  <main class="deck" id="deck">
+    <canvas class="relief" id="relief" aria-hidden="true"></canvas>
+    <section class="panel">
+      <div class="inner spread">
+        <p class="invite foil fade" style="--d:.3s">Nişan törenimizde sizleri de aramızda görmekten mutluluk duyarız</p>
+        <div class="mid">
+          <span class="name foil fade" style="--d:.75s">Hilal <span class="amp">&amp;</span> Halit</span>
+          <div class="fams fade" style="--d:1.35s">
+            <span class="fam foil">Tavlı Ailesi</span>
+            <span class="fam foil">Dinçer Ailesi</span>
+          </div>
+        </div>
+        <div class="foot">
+          <div class="divider foil fade" style="--d:1.75s" aria-hidden="true"></div>
+          <p class="date foil fade" style="--d:2s">1 AĞUSTOS 2026 · 6-9PM</p>
+          <p class="venue foil fade" style="--d:2.2s">9000 JANE ST, VAUGHAN, L4K 0G6</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <button class="hint" id="hint" type="button" hidden></button>
+
+  <div class="tune" id="tune">
+    <button class="tune__btn" id="tuneBtn" type="button" aria-label="Shine settings" aria-expanded="false" aria-controls="tuneMenu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
+    </button>
+    <div class="tune__menu" id="tuneMenu">
+      <label><span class="tune__row">Shine <output data-for="strength"></output></span><input type="range" data-key="strength" min="0" max="100" step="1"></label>
+      <label><span class="tune__row">Light size <output data-for="size"></output></span><input type="range" data-key="size" min="10" max="45" step="1"></label>
+      <label><span class="tune__row">Tilt sensitivity <output data-for="sens"></output></span><input type="range" data-key="sens" min="0" max="100" step="1"></label>
+      <label><span class="tune__row">Speed <output data-for="speed"></output></span><input type="range" data-key="speed" min="2" max="30" step="1"></label>
+      <label><span class="tune__row">Band rotation <output data-for="turn"></output></span><input type="range" data-key="turn" min="0" max="100" step="1"></label>
+      <p class="tune__sep">Embossing</p>
+      <label><span class="tune__row">Foil on lines <output data-for="relief"></output></span><input type="range" data-key="relief" min="0" max="100" step="1"></label>
+      <label><span class="tune__row">Edge flashes <output data-for="flash"></output></span><input type="range" data-key="flash" min="0" max="100" step="1"></label>
+      <label><span class="tune__row">Frame <output data-for="frame"></output></span><input type="range" data-key="frame" min="0" max="100" step="1"></label>
+      <label><span class="tune__row">Flowers <output data-for="flowers"></output></span><input type="range" data-key="flowers" min="0" max="100" step="1"></label>
+      <button class="tune__reset" id="tuneReset" type="button">Reset</button>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      var foils = Array.prototype.slice.call(document.querySelectorAll('.foil'));
+      var hint = document.getElementById('hint');
+      var reduce = matchMedia('(prefers-reduced-motion: reduce)');
+      var coarse = matchMedia('(pointer: coarse)').matches;
+      var clamp = function(v, a, b){ return Math.min(b, Math.max(a, v)); };
+
+      /* light position as a fraction of the viewport (0.5,0.5 = centre) */
+      var target = { x: .5, y: .4, spin: 0 }, cur = { x: .5, y: .4, spin: 0 };
+      var neutral = null;
+      var alpha0 = null;
+      var wrap = function(d){ return ((d % 360) + 540) % 360 - 180; };
+      var gotSensor = false, lastPointer = 0;
+
+      /* ---- tunable settings (remembered per browser) ---- */
+      var DEFAULTS = { strength: 70, size: 16, sens: 70, speed: 12, turn: 60, relief: 70, flash: 70, frame: 100, flowers: 70 };
+      var KEY = 'wedding3-shine-v1';
+      var cfg = Object.assign({}, DEFAULTS);
+      try { Object.assign(cfg, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch(e){}
+
+      /* foil colours: 0 = muted (always readable), 100 = full bright foil */
+      var MUTED  = ['#4f3912','#7a5a22','#a07c36','#6e5120','#93712f','#ad8840','#80612a','#5a4218','#8a6a2c','#a8853d','#735626','#9a7834','#573f16','#7f5f27'];
+      var BRIGHT = ['#5f4519','#9c7631','#e2c57c','#8a6627','#c9a453','#f3e2a6','#a27b30','#6b4e1d','#b88f3f','#f0d993','#93702b','#d6b464','#6a4c1b','#a8823a'];
+      var STOPS  = [0,9,16,24,32,40,47,53,60,67,75,84,92,100];
+      var hex = function(h){ return [1,3,5].map(function(i){ return parseInt(h.slice(i, i + 2), 16); }); };
+      var mix = function(a, b, t){ return a.map(function(v, i){ return Math.round(v + (b[i] - v) * t); }); };
+      var foil = { v: 0 };
+      function applyFoil(){
+        var t = cfg.strength / 100;
+        /* resting foil stays a deep gold; Shine mostly controls how hard the reflection flashes */
+        var hot = mix([214,178,98], [255,247,218], t), hotA = .55 + .42 * t, midA = .14 + .22 * t;
+        var cols = STOPS.map(function(s, i){ return mix(hex(MUTED[i]), hex(BRIGHT[i]), .3 * t); });
+        var bands = STOPS.map(function(s, i){ return 'rgb(' + cols[i].join(',') + ') ' + s + '%'; }).join(',');
+        /* the embossing shader paints the same foil, so hand it the same colours */
+        foil = { hot: hot, hotA: hotA, midA: midA, cols: cols, v: foil.v + 1 };
+        document.documentElement.style.setProperty('--foil',
+          'radial-gradient(circle ' + cfg.size + 'vmax at 50% 50%, rgba(' + hot + ',' + hotA + '), rgba(' + hot + ',' + midA + ') 25%, rgba(' + hot + ',0) 60%),' +
+          'linear-gradient(calc(var(--ang, 112) * 1deg),' + bands + ')');
+      }
+      /* degrees of tilt that sweep the light edge to edge: 100° at 0, 20° at 100 */
+      var tiltSpan = function(){ return 100 - cfg.sens * .8; };
+
+      var tune = document.getElementById('tune'), tuneBtn = document.getElementById('tuneBtn');
+      var inputs = Array.prototype.slice.call(tune.querySelectorAll('input[data-key]'));
+      function syncInputs(){
+        inputs.forEach(function(inp){
+          inp.value = cfg[inp.dataset.key];
+          tune.querySelector('output[data-for="' + inp.dataset.key + '"]').textContent = cfg[inp.dataset.key];
+        });
+      }
+      function save(){ try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch(e){} }
+      inputs.forEach(function(inp){
+        inp.addEventListener('input', function(){
+          cfg[inp.dataset.key] = +inp.value;
+          tune.querySelector('output[data-for="' + inp.dataset.key + '"]').textContent = inp.value;
+          applyFoil(); save();
+        });
+      });
+      document.getElementById('tuneReset').addEventListener('click', function(){
+        cfg = Object.assign({}, DEFAULTS); syncInputs(); applyFoil(); save();
+      });
+      tuneBtn.addEventListener('click', function(e){
+        e.stopPropagation();
+        var open = tune.classList.toggle('open');
+        tuneBtn.setAttribute('aria-expanded', open);
+      });
+      document.addEventListener('pointerdown', function(e){
+        if (!tune.contains(e.target)){ tune.classList.remove('open'); tuneBtn.setAttribute('aria-expanded', false); }
+      });
+      syncInputs(); applyFoil();
+
+      function showHint(text){ hint.textContent = text; hint.hidden = false; }
+      function hideHint(){ hint.hidden = true; }
+
+      function onOrient(e){
+        if (e.beta == null) return;
+        if (!gotSensor){ gotSensor = true; hideHint(); }
+        var ang = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
+        var p = e.beta, r = e.gamma;
+        /* turning the phone in its own plane: keep the bands roughly fixed in the room */
+        if (e.alpha != null){
+          if (alpha0 == null) alpha0 = e.alpha;
+          target.spin = wrap(e.alpha - alpha0);
+        }
+        if (ang === 90){ p = -e.gamma; r = e.beta; }
+        else if (ang === 270 || ang === -90){ p = e.gamma; r = -e.beta; }
+        /* the light is fixed in the room, behind and above the reader. Whatever angle they
+           first hold the phone at puts its reflection just above the centre; tilting away
+           from that moves the reflection quickly, like a mirror. The neutral angle slowly
+           follows the hand so a change of posture doesn't lose the light for good. */
+        if (!neutral) neutral = { p: p, r: r };
+        neutral.p += (p - neutral.p) * .004;
+        neutral.r += (r - neutral.r) * .004;
+        var span = tiltSpan();
+        target.x = clamp(.5 + (r - neutral.r) / span, -.3, 1.3);
+        target.y = clamp(.4 + (p - neutral.p) / span, -.3, 1.3);
+      }
+      function listen(){ addEventListener('deviceorientation', onOrient); }
+
+      var needsPermission = typeof DeviceOrientationEvent !== 'undefined' &&
+        typeof DeviceOrientationEvent.requestPermission === 'function';
+
+      if (needsPermission){
+        showHint('Dokunun ve telefonu eğin');
+        var asked = false;
+        var ask = function(e){
+          if (asked || tune.contains(e.target)) return;
+          asked = true;
+          DeviceOrientationEvent.requestPermission().then(function(res){
+            if (res === 'granted') listen(); else hideHint();
+          }).catch(hideHint);
+        };
+        document.addEventListener('click', ask);
+      } else if ('DeviceOrientationEvent' in window){
+        listen();
+        if (coarse){
+          showHint('Telefonu eğin');
+          setTimeout(hideHint, 4000);
+        }
+      }
+
+      /* desktop: the cursor is the light */
+      addEventListener('pointermove', function(e){
+        if (gotSensor || e.pointerType !== 'mouse') return;
+        lastPointer = performance.now();
+        target.x = e.clientX / innerWidth;
+        target.y = e.clientY / innerHeight;
+      });
+
+      /* ---- relit embossing ----
+         bg-*-relief.jpg holds the embossing's slope (R,G) and where it is (B), made by
+         tools/make_normals.py. The shader lights each raised edge from the current light
+         position, so the change only ever happens along the embossed lines. */
+      var relief = (function(){
+        var deck = document.getElementById('deck');
+        var cvs = document.getElementById('relief');
+        var gl = cvs.getContext('webgl', { premultipliedAlpha:false, antialias:false });
+        if (!gl) return { draw:function(){} };
+
+        var VS = 'attribute vec2 p; varying vec2 v; void main(){ v = p * .5 + .5; v.y = 1. - v.y; gl_Position = vec4(p, 0., 1.); }';
+        var FS = [
+          'precision mediump float;',
+          'varying vec2 v;',
+          'uniform sampler2D uBase, uRelief, uPal;',
+          'uniform vec4 uDeck;',                                  /* deck rect in CSS px: left, top, width, height */
+          'uniform vec2 uHotPos, uBandC, uDir;',
+          'uniform vec3 uHot;',
+          'uniform float uHotA, uMidA, uRad, uLen, uAmt, uFlash, uFrame, uFlower, uDist;',
+          'void main(){',
+          '  vec3 base = texture2D(uBase, v).rgb;',
+          '  vec3 rel = texture2D(uRelief, v).rgb;',
+          /* the text foil, evaluated at this pixel: brushed bands + moving hotspot (same maths as the CSS gradients) */
+          '  vec2 px = uDeck.xy + v * uDeck.zw;',
+          '  float t = dot(px - uBandC, uDir) / uLen + .5;',
+          '  vec3 band = texture2D(uPal, vec2(clamp(t, 0., 1.), .5)).rgb;',
+          '  float d = length(px - uHotPos) / uRad;',
+          '  float a = d < .25 ? mix(uHotA, uMidA, d / .25) : mix(uMidA, 0., clamp((d - .25) / .35, 0., 1.));',
+          '  vec3 foil = mix(band, uHot, a);',
+          /* keep the embossed light/shadow so the lines still read as raised */
+          '  float lum = dot(base, vec3(.2126, .7152, .0722));',
+          '  foil *= mix(1., lum / .82, .6);',
+          /* only on the embossed lines: where the relief map has a slope */
+          '  float edge = smoothstep(.06, .45, length(rel.rg * 2. - 1.));',
+          '  float sage = 1. - smoothstep(.70, .80, lum);',     /* flower texture is darker than the cream frame */
+          '  float w = rel.b * edge * mix(uFrame, uFlower, sage);',
+          /* mirror flash: flat foil reflects the light right at the hotspot; away from it, only
+             edges tilted toward the hotspot can bounce the light into the eye */
+          '  vec3 N = normalize(vec3(-(rel.rg * 2. - 1.) * 1.3, 1.));',
+          '  vec3 H = normalize(vec3((uHotPos - px) / uDist, 1.));',
+          '  float flash = pow(max(dot(N, H), 0.), 60.);',
+          '  vec3 col = mix(base, foil, uAmt * w) + uFlash * w * flash * uHot * 1.1;',
+          '  gl_FragColor = vec4(clamp(col, 0., 1.), 1.);',
+          '}'
+        ].join('\n');
+        function sh(type, src){ var o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); return o; }
+        var prog = gl.createProgram();
+        gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS));
+        gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS));
+        gl.linkProgram(prog);
+        if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return { draw:function(){} };
+        gl.useProgram(prog);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+        var loc = gl.getAttribLocation(prog, 'p');
+        gl.enableVertexAttribArray(loc);
+        gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+
+        var U = {};
+        ['uBase','uRelief','uPal','uDeck','uHotPos','uBandC','uDir','uHot','uHotA','uMidA','uRad','uLen','uAmt','uFlash','uFrame','uFlower','uDist']
+          .forEach(function(n){ U[n] = gl.getUniformLocation(prog, n); });
+        gl.uniform1i(U.uBase, 0); gl.uniform1i(U.uRelief, 1); gl.uniform1i(U.uPal, 2);
+
+        function texture(unit){
+          var t = gl.createTexture();
+          gl.activeTexture(gl.TEXTURE0 + unit);
+          gl.bindTexture(gl.TEXTURE_2D, t);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+          return t;
+        }
+        var tex = [texture(0), texture(1), texture(2)];
+        /* band colours as a 256x1 strip, rebuilt whenever the Shine setting changes */
+        var pal = document.createElement('canvas'); pal.width = 256; pal.height = 1;
+        var palCtx = pal.getContext('2d'), palV = -1;
+        function uploadPalette(){
+          var g = palCtx.createLinearGradient(0, 0, 256, 0);
+          foil.cols.forEach(function(c, i){ g.addColorStop(STOPS[i] / 100, 'rgb(' + c.join(',') + ')'); });
+          palCtx.fillStyle = g; palCtx.fillRect(0, 0, 256, 1);
+          gl.activeTexture(gl.TEXTURE2);
+          gl.bindTexture(gl.TEXTURE_2D, tex[2]);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, pal);
+          palV = foil.v;
+        }
+        var ready = false, current = '', loadId = 0;
+
+        function load(img, unit, id){
+          return new Promise(function(res, rej){
+            var im = new Image();
+            im.onload = function(){
+              if (id !== loadId) return rej();
+              gl.activeTexture(gl.TEXTURE0 + unit);
+              gl.bindTexture(gl.TEXTURE_2D, tex[unit]);
+              gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, im);
+              res();
+            };
+            im.onerror = rej;
+            im.src = img;
+          });
+        }
+        /* follow whichever frame image the CSS media queries picked */
+        function pick(){
+          var m = /url\(["']?([^"')]+)["']?\)/.exec(getComputedStyle(deck).backgroundImage);
+          if (!m || m[1] === current) return;
+          current = m[1];
+          var id = ++loadId;
+          ready = false; cvs.classList.remove('ready');
+          Promise.all([load(current, 0, id), load(current.replace(/\.jpg$/, '-relief.jpg'), 1, id)])
+            .then(function(){ ready = true; last = ''; }).catch(function(){});
+        }
+        function size(){
+          var r = deck.getBoundingClientRect();
+          var dpr = Math.min(window.devicePixelRatio || 1, 2);
+          var scale = Math.min(dpr, Math.sqrt(2.6e6 / Math.max(1, r.width * r.height)));
+          cvs.width = Math.round(r.width * scale); cvs.height = Math.round(r.height * scale);
+          gl.viewport(0, 0, cvs.width, cvs.height);
+          last = '';
+        }
+        addEventListener('resize', function(){ size(); pick(); });
+        size(); pick();
+
+        var last = '';
+        return {
+          /* lx/ly: hotspot centre, ang: band angle, bcx/bcy: band layer centre (all CSS px, viewport) */
+          draw: function(lx, ly, ang, bcx, bcy){
+            if (!ready) return;
+            var r = deck.getBoundingClientRect();
+            var key = [lx.toFixed(1), ly.toFixed(1), ang.toFixed(2), foil.v, r.width, r.height, cfg.relief, cfg.flash, cfg.frame, cfg.flowers, cfg.size, cfg.strength].join();
+            if (key === last) return;                 /* nothing moved: skip the redraw */
+            last = key;
+            if (palV !== foil.v) uploadPalette();
+            var vw = innerWidth, vh = innerHeight, rad = ang * Math.PI / 180;
+            var dx = Math.sin(rad), dy = -Math.cos(rad);
+            gl.uniform4f(U.uDeck, r.left, r.top, r.width, r.height);
+            gl.uniform2f(U.uHotPos, lx, ly);
+            gl.uniform2f(U.uBandC, bcx, bcy);
+            gl.uniform2f(U.uDir, dx, dy);
+            gl.uniform1f(U.uLen, Math.abs(2 * vw * dx) + Math.abs(2 * vh * dy));
+            gl.uniform3f(U.uHot, foil.hot[0] / 255, foil.hot[1] / 255, foil.hot[2] / 255);
+            gl.uniform1f(U.uHotA, foil.hotA);
+            gl.uniform1f(U.uMidA, foil.midA);
+            gl.uniform1f(U.uRad, cfg.size * Math.max(vw, vh) / 100);
+            gl.uniform1f(U.uAmt, cfg.relief / 100);
+            gl.uniform1f(U.uFlash, cfg.flash / 100);
+            gl.uniform1f(U.uDist, .7 * Math.max(vw, vh));
+            gl.uniform1f(U.uFrame, cfg.frame / 100);
+            gl.uniform1f(U.uFlower, cfg.flowers / 100);
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+            cvs.classList.add('ready');
+          }
+        };
+      })();
+
+      var last = performance.now();
+      function frame(now){
+        var dt = Math.min(.1, (now - last) / 1000); last = now;
+
+        /* with no sensor and an idle cursor, let the light drift slowly on its own */
+        if (!gotSensor && now - lastPointer > 2500 && !reduce.matches){
+          var t = now / 1000;
+          target.x = .5 + .55 * Math.sin(t * .35);
+          target.y = .45 + .3 * Math.sin(t * .23 + 1);
+        }
+
+        var k = 1 - Math.exp(-dt * cfg.speed);
+        cur.x += (target.x - cur.x) * k;
+        cur.y += (target.y - cur.y) * k;
+        cur.spin += wrap(target.spin - cur.spin) * k;
+
+        /* band direction follows the tilt (and in-plane rotation) instead of staying at one angle */
+        var f = cfg.turn / 100;
+        var ang = 112 + f * ((cur.x - .5) * 150 + (cur.y - .5) * 75 + cur.spin);
+        document.documentElement.style.setProperty('--ang', ang.toFixed(1));
+
+        var vw = innerWidth, vh = innerHeight;
+        var lx = cur.x * vw, ly = cur.y * vh;
+        /* the brushed bands drift a little slower than the hotspot, so they shimmer against it */
+        var bx2 = (cur.x - .5) * vw * .6, by2 = (cur.y - .5) * vh * .6;
+        relief.draw(lx, ly, ang, bx2 + vw / 2, by2 + vh / 2);
+        for (var i = 0; i < foils.length; i++){
+          var r = foils[i].getBoundingClientRect();
+          var s = foils[i].style;
+          s.backgroundPosition =
+            (lx - vw - r.left) + 'px ' + (ly - vh - r.top) + 'px, ' +
+            (bx2 - vw / 2 - r.left) + 'px ' + (by2 - vh / 2 - r.top) + 'px';
+        }
+        requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>
