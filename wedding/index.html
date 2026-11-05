@@ -175,7 +175,7 @@
       var gotSensor = false, lastPointer = 0;
 
       /* ---- tunable settings (remembered per browser) ---- */
-      var DEFAULTS = { strength: 50, size: 24, sens: 70, speed: 12 };
+      var DEFAULTS = { strength: 70, size: 24, sens: 70, speed: 12 };
       var KEY = 'wedding-shine-v1';
       var cfg = Object.assign({}, DEFAULTS);
       try { Object.assign(cfg, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch(e){}
