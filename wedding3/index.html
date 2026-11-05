@@ -135,6 +135,15 @@
     .fine summary::-webkit-details-marker{ display:none; }
     .fine summary::after{ content:" +"; }
     .fine[open] summary::after{ content:" −"; }
+    .tune__head{ display:flex; align-items:flex-end; justify-content:space-between; gap:.5rem; margin-top:.9rem; padding-top:.7rem; border-top:1px solid rgba(90,74,44,.15); }
+    .tune__head .tune__sep{ margin:0; padding:0; border:0; }
+    .tune .switch{ display:flex; align-items:center; gap:.35rem; margin:0; cursor:pointer; font-size:.6rem; font-weight:600; letter-spacing:.1em; text-transform:uppercase; }
+    .switch input{ appearance:none; -webkit-appearance:none; width:30px; height:18px; margin:0; border-radius:999px; background:rgba(90,74,44,.25); position:relative; cursor:pointer; transition:background .2s; }
+    .switch input::after{ content:""; position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%; background:#fff; transition:transform .2s var(--ease); }
+    .switch input:checked{ background:#8a6a2c; }
+    .switch input:checked::after{ transform:translateX(12px); }
+    .switch input:focus-visible{ outline:2px solid #8a6a2c; outline-offset:2px; }
+    .presets.off{ opacity:.45; }
     .tune__sep--first{ margin-top:0; padding-top:0; border-top:0; }
     .tune__sep{ margin:.9rem 0 0; padding-top:.7rem; border-top:1px solid rgba(90,74,44,.15); font-size:.58rem; letter-spacing:.14em; text-transform:uppercase; opacity:.55; }
 
@@ -172,6 +181,11 @@
     <div class="tune__menu" id="tuneMenu">
       <p class="tune__sep tune__sep--first">Presets</p>
       <div class="presets" id="presets"></div>
+      <div class="tune__head">
+        <p class="tune__sep">Frame light</p>
+        <label class="switch"><input type="checkbox" id="runOn"><span>On</span></label>
+      </div>
+      <div class="presets" id="patterns"></div>
       <details class="fine">
       <summary class="tune__sep">Fine-tune</summary>
       <label><span class="tune__row">Shine <output data-for="strength"></output></span><input type="range" data-key="strength" min="0" max="100" step="1"></label>
@@ -182,8 +196,8 @@
       <p class="tune__sep">Frame</p>
       <label><span class="tune__row">Foil on lines <output data-for="relief"></output></span><input type="range" data-key="relief" min="0" max="100" step="1"></label>
       <label><span class="tune__row">Edge flashes <output data-for="flash"></output></span><input type="range" data-key="flash" min="0" max="100" step="1"></label>
-      <label><span class="tune__row">Running light <output data-for="runner"></output></span><input type="range" data-key="runner" min="0" max="100" step="1"></label>
-      <label><span class="tune__row">Running speed <output data-for="runSpeed"></output></span><input type="range" data-key="runSpeed" min="0" max="100" step="1"></label>
+      <label><span class="tune__row">Frame light brightness <output data-for="runner"></output></span><input type="range" data-key="runner" min="0" max="100" step="1"></label>
+      <label><span class="tune__row">Frame light speed <output data-for="runSpeed"></output></span><input type="range" data-key="runSpeed" min="0" max="100" step="1"></label>
       </details>
       <button class="tune__reset" id="tuneReset" type="button">Reset</button>
     </div>
@@ -218,7 +232,7 @@
       ];
       var settingsOf = function(p){ var o = Object.assign({}, p); delete o.name; o.preset = p.name; return o; };
       /* the running light is its own thing: presets leave it alone */
-      var DEFAULTS = Object.assign(settingsOf(PRESETS[2]), { runner: 70, runSpeed: 70 });
+      var DEFAULTS = Object.assign(settingsOf(PRESETS[2]), { runner: 70, runSpeed: 70, runOn: true, pattern: 'Solo' });
       var KEY = 'wedding3-shine-v2';
       var cfg = Object.assign({}, DEFAULTS);
       try { Object.assign(cfg, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch(e){}
@@ -247,6 +261,16 @@
 
       var tune = document.getElementById('tune'), tuneBtn = document.getElementById('tuneBtn');
       var inputs = Array.prototype.slice.call(tune.querySelectorAll('input[data-key]'));
+      /* frame light patterns: names only here, the motion is in framePattern() below */
+      var PATTERNS = ['Solo', 'Twin', 'Comet', 'Corners in', 'Middles out', 'Cascade', 'Ping-pong', 'Corner hop', 'Sparks'];
+      var patternBox = document.getElementById('patterns'), runOn = document.getElementById('runOn');
+      PATTERNS.forEach(function(name){
+        var b = document.createElement('button');
+        b.type = 'button'; b.className = 'preset'; b.textContent = name;
+        b.addEventListener('click', function(){ cfg.pattern = name; cfg.runOn = true; syncInputs(); save(); });
+        patternBox.appendChild(b);
+      });
+      runOn.addEventListener('change', function(){ cfg.runOn = runOn.checked; syncInputs(); save(); });
       var presetBox = document.getElementById('presets');
       PRESETS.forEach(function(p){
         var b = document.createElement('button');
@@ -256,6 +280,8 @@
       });
       function syncInputs(){
         Array.prototype.forEach.call(presetBox.children, function(b){ b.setAttribute('aria-pressed', b.textContent === cfg.preset); });
+        Array.prototype.forEach.call(patternBox.children, function(b){ b.setAttribute('aria-pressed', cfg.runOn && b.textContent === cfg.pattern); });
+        runOn.checked = cfg.runOn; patternBox.classList.toggle('off', !cfg.runOn);
         inputs.forEach(function(inp){
           inp.value = cfg[inp.dataset.key];
           tune.querySelector('output[data-for="' + inp.dataset.key + '"]').textContent = cfg[inp.dataset.key];
@@ -360,7 +386,8 @@
           'uniform vec2 uHotPos, uBandC, uDir;',
           'uniform vec3 uHot;',
           'uniform float uHotA, uMidA, uRad, uLen, uAmt, uFlash, uDist, uRunR, uRunAmt;',
-          'uniform vec2 uRun[6]; uniform float uRunW[6];',
+          /* 24 light points packed two per vec4 and weights four per vec4, to stay well inside phone uniform limits */
+          'uniform vec4 uRun[12]; uniform vec4 uRunW[6];',
           'void main(){',
           '  vec3 base = texture2D(uBase, v).rgb;',
           '  vec3 rel = texture2D(uRelief, v).rgb;',
@@ -384,9 +411,14 @@
           '  float flash = pow(max(dot(N, H), 0.), 60.);',
           '  vec3 col = mix(base, foil, uAmt * w) + uFlash * w * flash * uHot * 1.1;',
           /* running light: a dot (plus a short fading tail) travelling along the border lines */
-          '  float glow = 0.;',
-          '  for (int i = 0; i < 6; i++){ vec2 dd = px - uRun[i]; glow += uRunW[i] * exp(-dot(dd, dd) / (uRunR * uRunR)); }',
-          '  col += uRunAmt * glow * rel.b * mix(.5, 1., edge) * uHot * 1.25;',
+          '  if (uRunAmt > 0. && rel.b > .01){',              /* only frame pixels pay for the frame light */
+          '    float glow = 0.;',
+          '    for (int j = 0; j < 6; j++){',
+          '      vec4 qa = (uRun[2 * j] - px.xyxy) / uRunR, qb = (uRun[2 * j + 1] - px.xyxy) / uRunR;',
+          '      glow += dot(uRunW[j], exp(-vec4(dot(qa.xy, qa.xy), dot(qa.zw, qa.zw), dot(qb.xy, qb.xy), dot(qb.zw, qb.zw))));',
+          '    }',
+          '    col += uRunAmt * min(glow, 1.5) * rel.b * mix(.5, 1., edge) * uHot * 1.25;',
+          '  }',
           '  gl_FragColor = vec4(clamp(col, 0., 1.), 1.);',
           '}'
         ].join('\n');
@@ -407,7 +439,6 @@
         var U = {};
         ['uBase','uRelief','uPal','uDeck','uHotPos','uBandC','uDir','uHot','uHotA','uMidA','uRad','uLen','uAmt','uFlash','uDist','uRunR','uRunAmt','uRun','uRunW']
           .forEach(function(n){ U[n] = gl.getUniformLocation(prog, n); });
-        gl.uniform1fv(U.uRunW, [1, .62, .4, .25, .15, .08]);
         gl.uniform1i(U.uBase, 0); gl.uniform1i(U.uRelief, 1); gl.uniform1i(U.uPal, 2);
 
         function texture(unit){
@@ -479,7 +510,7 @@
           draw: function(lx, ly, ang, bcx, bcy, now){
             if (!ready) return;
             var r = deck.getBoundingClientRect();
-            var running = rect && cfg.runner > 0 && !reduce.matches;
+            var running = rect && cfg.runOn && cfg.runner > 0 && !reduce.matches;
             var key = running ? '' : [lx.toFixed(1), ly.toFixed(1), ang.toFixed(2), foil.v, r.width, r.height, cfg.relief, cfg.flash, cfg.size, cfg.strength].join();
             if (key && key === last) return;          /* nothing moved: skip the redraw */
             last = key;
@@ -500,19 +531,28 @@
             gl.uniform1f(U.uDist, .7 * Math.max(vw, vh));
             gl.uniform1f(U.uRunAmt, running ? cfg.runner / 100 : 0);
             if (running){
-              /* clockwise round the border rectangle at constant speed: 30 s a lap at 0, 4 s at 100 */
               var x0 = rect[0] * r.width, y0 = rect[1] * r.height, x1 = rect[2] * r.width, y1 = rect[3] * r.height;
               var w = x1 - x0, h = y1 - y0, per = 2 * (w + h);
-              var lap = 30 - cfg.runSpeed * .26, at = (now / 1000 / lap % 1) * per, pts = [];
-              for (var i = 0; i < 6; i++){
-                var d = ((at - i * .011 * per) % per + per) % per, x, y;
-                if (d < w){ x = x0 + d; y = y0; }
-                else if (d < w + h){ x = x1; y = y0 + d - w; }
-                else if (d < 2 * w + h){ x = x1 - (d - w - h); y = y1; }
-                else { x = x0; y = y1 - (d - 2 * w - h); }
-                pts.push(r.left + x, r.top + y);
+              /* 30 s a lap at speed 0, 4 s at 100 */
+              var lap = 30 - cfg.runSpeed * .26;
+              var heads = framePattern(cfg.pattern, now / 1000 / lap, w, h);
+              var pts = [], wts = [];
+              for (var hi = 0; hi < 8; hi++){
+                var hd = heads[hi];
+                for (var k = 0; k < 3; k++){
+                  if (!hd){ pts.push(-500, -500); wts.push(0); continue; }
+                  /* the tail trails behind the direction of travel */
+                  var d = (((hd.d - hd.dir * k * hd.gap * per) % per) + per) % per, x, y;
+                  if (d < w){ x = x0 + d; y = y0; }
+                  else if (d < w + h){ x = x1; y = y0 + d - w; }
+                  else if (d < 2 * w + h){ x = x1 - (d - w - h); y = y1; }
+                  else { x = x0; y = y1 - (d - 2 * w - h); }
+                  pts.push(r.left + x, r.top + y);
+                  wts.push(hd.a * [1, .5, .22][k] * (hd.dir === 0 && k ? 0 : 1));
+                }
               }
-              gl.uniform2fv(U.uRun, pts);
+              gl.uniform4fv(U.uRun, pts);
+              gl.uniform4fv(U.uRunW, wts);
               gl.uniform1f(U.uRunR, .03 * Math.min(r.width, r.height));
             }
             gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -520,6 +560,66 @@
           }
         };
       })();
+
+      /* Frame light patterns. The border is one loop measured clockwise from the top-left
+         corner (d = 0 .. 2w+2h). Each pattern returns up to 8 "heads": where it is (d), which
+         way it travels (dir: 1 clockwise, -1 counter-clockwise, 0 standing still), its
+         brightness (a) and tail spacing (gap, as a fraction of the loop). T counts laps. */
+      function framePattern(name, T, w, h){
+        var per = 2 * (w + h);
+        var C = [0, w, w + h, 2 * w + h];          /* corners: TL, TR, BR, BL */
+        var E = [w, h, w, h];                      /* edge k runs clockwise from corner k */
+        var frac = function(x){ return x - Math.floor(x); };
+        var bell = function(t){ return Math.pow(Math.sin(Math.PI * t), .6); };   /* fade in and out over a run */
+        var out = [], t, i;
+        switch (name){
+          case 'Twin':
+            t = frac(T);
+            return [{ d: t * per, dir: 1, a: 1, gap: .011 }, { d: t * per + per / 2, dir: 1, a: 1, gap: .011 }];
+          case 'Comet':
+            t = frac(T * 1.6);
+            return [{ d: t * per, dir: 1, a: 1.1, gap: .03 }];
+          case 'Corners in':                        /* from every corner along both edges, meeting mid-edge */
+            t = frac(T * 2.5);
+            for (i = 0; i < 4; i++){
+              out.push({ d: C[i] + t * E[i] / 2, dir: 1, a: bell(t), gap: .008 });
+              out.push({ d: C[i] - t * E[(i + 3) % 4] / 2, dir: -1, a: bell(t), gap: .008 });
+            }
+            return out;
+          case 'Middles out':                       /* from every edge's middle out to the corners */
+            t = frac(T * 2.5);
+            for (i = 0; i < 4; i++){
+              out.push({ d: C[i] + E[i] / 2 + t * E[i] / 2, dir: 1, a: bell(t), gap: .008 });
+              out.push({ d: C[i] + E[i] / 2 - t * E[i] / 2, dir: -1, a: bell(t), gap: .008 });
+            }
+            return out;
+          case 'Cascade':                           /* from the top centre down both sides, meeting at the bottom */
+            t = frac(T * 1.4);
+            return [{ d: w / 2 + t * per / 2, dir: 1, a: bell(t), gap: .012 }, { d: w / 2 - t * per / 2, dir: -1, a: bell(t), gap: .012 }];
+          case 'Ping-pong':                         /* the same two dots, back up to the top and down again */
+            t = frac(T * .8) * 2;
+            var back = t > 1, u = back ? 2 - t : t;
+            u = u * u * (3 - 2 * u);
+            return [{ d: w / 2 + u * per / 2, dir: back ? -1 : 1, a: 1, gap: .012 },
+                    { d: w / 2 - u * per / 2, dir: back ? 1 : -1, a: 1, gap: .012 }];
+          case 'Corner hop':                        /* the corner ornaments glow one after another */
+            t = frac(T * 1.2);
+            for (i = 0; i < 4; i++){
+              var c = Math.cos(2 * Math.PI * (t - i / 4));
+              out.push({ d: C[i], dir: 0, a: 1.4 * Math.pow(Math.max(0, c), 6), gap: 0 });
+            }
+            return out;
+          case 'Sparks':                            /* short twinkles at random spots along the frame */
+            for (i = 0; i < 8; i++){
+              var cyc = T * 3 + i / 8, n = Math.floor(cyc);
+              var rnd = frac(Math.sin(n * 12.9898 + i * 78.233) * 43758.5453);
+              out.push({ d: rnd * per, dir: 0, a: Math.pow(Math.sin(Math.PI * frac(cyc)), 2), gap: 0 });
+            }
+            return out;
+          default:                                  /* Solo: one dot circling clockwise */
+            return [{ d: frac(T) * per, dir: 1, a: 1, gap: .011 }];
+        }
+      }
 
       var last = performance.now();
       function frame(now){
