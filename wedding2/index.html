@@ -167,8 +167,7 @@
       <label><span class="tune__row">Speed <output data-for="speed"></output></span><input type="range" data-key="speed" min="2" max="30" step="1"></label>
       <label><span class="tune__row">Band rotation <output data-for="turn"></output></span><input type="range" data-key="turn" min="0" max="100" step="1"></label>
       <p class="tune__sep">Embossing</p>
-      <label><span class="tune__row">Relief light <output data-for="relief"></output></span><input type="range" data-key="relief" min="0" max="100" step="1"></label>
-      <label><span class="tune__row">Glints <output data-for="glint"></output></span><input type="range" data-key="glint" min="0" max="100" step="1"></label>
+      <label><span class="tune__row">Foil on lines <output data-for="relief"></output></span><input type="range" data-key="relief" min="0" max="100" step="1"></label>
       <label><span class="tune__row">Frame <output data-for="frame"></output></span><input type="range" data-key="frame" min="0" max="100" step="1"></label>
       <label><span class="tune__row">Flowers <output data-for="flowers"></output></span><input type="range" data-key="flowers" min="0" max="100" step="1"></label>
       <button class="tune__reset" id="tuneReset" type="button">Reset</button>
@@ -190,8 +189,8 @@
       var gotSensor = false, lastPointer = 0;
 
       /* ---- tunable settings (remembered per browser) ---- */
-      var DEFAULTS = { strength: 70, size: 24, sens: 70, speed: 12, turn: 60, relief: 60, glint: 50, frame: 100, flowers: 70 };
-      var KEY = 'wedding2-shine-v1';
+      var DEFAULTS = { strength: 70, size: 24, sens: 70, speed: 12, turn: 60, relief: 70, frame: 100, flowers: 70 };
+      var KEY = 'wedding2-shine-v2';
       var cfg = Object.assign({}, DEFAULTS);
       try { Object.assign(cfg, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch(e){}
 
@@ -201,10 +200,14 @@
       var STOPS  = [0,9,16,24,32,40,47,53,60,67,75,84,92,100];
       var hex = function(h){ return [1,3,5].map(function(i){ return parseInt(h.slice(i, i + 2), 16); }); };
       var mix = function(a, b, t){ return a.map(function(v, i){ return Math.round(v + (b[i] - v) * t); }); };
+      var foil = { v: 0 };
       function applyFoil(){
         var t = cfg.strength / 100;
         var hot = mix([196,156,72], [255,250,228], t), hotA = .5 + .45 * t, midA = .22 + .33 * t;
-        var bands = STOPS.map(function(s, i){ return 'rgb(' + mix(hex(MUTED[i]), hex(BRIGHT[i]), t).join(',') + ') ' + s + '%'; }).join(',');
+        var cols = STOPS.map(function(s, i){ return mix(hex(MUTED[i]), hex(BRIGHT[i]), t); });
+        var bands = STOPS.map(function(s, i){ return 'rgb(' + cols[i].join(',') + ') ' + s + '%'; }).join(',');
+        /* the embossing shader paints the same foil, so hand it the same colours */
+        foil = { hot: hot, hotA: hotA, midA: midA, cols: cols, v: foil.v + 1 };
         document.documentElement.style.setProperty('--foil',
           'radial-gradient(circle ' + cfg.size + 'vmax at 50% 50%, rgba(' + hot + ',' + hotA + '), rgba(' + hot + ',' + midA + ') 32%, rgba(' + hot + ',0) 70%),' +
           'linear-gradient(calc(var(--ang, 112) * 1deg),' + bands + ')');
@@ -307,23 +310,29 @@
         var FS = [
           'precision mediump float;',
           'varying vec2 v;',
-          'uniform sampler2D uBase, uRelief;',
-          'uniform vec2 uLight; uniform float uAspect, uAmt, uGlint, uFrame, uFlower;',
+          'uniform sampler2D uBase, uRelief, uPal;',
+          'uniform vec4 uDeck;',                                  /* deck rect in CSS px: left, top, width, height */
+          'uniform vec2 uHotPos, uBandC, uDir;',
+          'uniform vec3 uHot;',
+          'uniform float uHotA, uMidA, uRad, uLen, uAmt, uFrame, uFlower;',
           'void main(){',
           '  vec3 base = texture2D(uBase, v).rgb;',
           '  vec3 rel = texture2D(uRelief, v).rgb;',
-          '  vec2 slope = rel.rg * 2. - 1.;',
-          '  vec3 N = normalize(vec3(-slope * 1.6, 1.));',
-          '  vec3 P = vec3(v.x * uAspect, v.y, 0.);',
-          '  vec3 L = normalize(vec3(uLight.x * uAspect, uLight.y, .55) - P);',
-          '  vec3 H = normalize(L + vec3(0., 0., 1.));',
-          '  float diff = dot(N, L) - L.z;',                                   /* 0 on flat paper */
-          '  float spec = max(pow(max(dot(N, H), 0.), 36.) - pow(H.z, 36.), 0.);',
+          /* the text foil, evaluated at this pixel: brushed bands + moving hotspot (same maths as the CSS gradients) */
+          '  vec2 px = uDeck.xy + v * uDeck.zw;',
+          '  float t = dot(px - uBandC, uDir) / uLen + .5;',
+          '  vec3 band = texture2D(uPal, vec2(clamp(t, 0., 1.), .5)).rgb;',
+          '  float d = length(px - uHotPos) / uRad;',
+          '  float a = d < .32 ? mix(uHotA, uMidA, d / .32) : mix(uMidA, 0., clamp((d - .32) / .38, 0., 1.));',
+          '  vec3 foil = mix(band, uHot, a);',
+          /* keep the embossed light/shadow so the lines still read as raised */
           '  float lum = dot(base, vec3(.2126, .7152, .0722));',
-          '  float sage = 1. - smoothstep(.70, .80, lum);',                         /* flower texture is darker than the cream frame */
-          '  float w = rel.b * mix(uFrame, uFlower, sage);',
-          '  vec3 col = base * (1. + uAmt * w * diff * 1.8) + uGlint * w * spec * vec3(1., .94, .80);',
-          '  gl_FragColor = vec4(clamp(col, 0., 1.), 1.);',
+          '  foil *= mix(1., lum / .82, .6);',
+          /* only on the embossed lines: where the relief map has a slope */
+          '  float edge = smoothstep(.06, .45, length(rel.rg * 2. - 1.));',
+          '  float sage = 1. - smoothstep(.70, .80, lum);',     /* flower texture is darker than the cream frame */
+          '  float w = uAmt * rel.b * edge * mix(uFrame, uFlower, sage);',
+          '  gl_FragColor = vec4(clamp(mix(base, foil, w), 0., 1.), 1.);',
           '}'
         ].join('\n');
         function sh(type, src){ var o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); return o; }
@@ -341,8 +350,9 @@
         gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
 
         var U = {};
-        ['uBase','uRelief','uLight','uAspect','uAmt','uGlint','uFrame','uFlower'].forEach(function(n){ U[n] = gl.getUniformLocation(prog, n); });
-        gl.uniform1i(U.uBase, 0); gl.uniform1i(U.uRelief, 1);
+        ['uBase','uRelief','uPal','uDeck','uHotPos','uBandC','uDir','uHot','uHotA','uMidA','uRad','uLen','uAmt','uFrame','uFlower']
+          .forEach(function(n){ U[n] = gl.getUniformLocation(prog, n); });
+        gl.uniform1i(U.uBase, 0); gl.uniform1i(U.uRelief, 1); gl.uniform1i(U.uPal, 2);
 
         function texture(unit){
           var t = gl.createTexture();
@@ -354,7 +364,19 @@
           gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
           return t;
         }
-        var tex = [texture(0), texture(1)];
+        var tex = [texture(0), texture(1), texture(2)];
+        /* band colours as a 256x1 strip, rebuilt whenever the Shine setting changes */
+        var pal = document.createElement('canvas'); pal.width = 256; pal.height = 1;
+        var palCtx = pal.getContext('2d'), palV = -1;
+        function uploadPalette(){
+          var g = palCtx.createLinearGradient(0, 0, 256, 0);
+          foil.cols.forEach(function(c, i){ g.addColorStop(STOPS[i] / 100, 'rgb(' + c.join(',') + ')'); });
+          palCtx.fillStyle = g; palCtx.fillRect(0, 0, 256, 1);
+          gl.activeTexture(gl.TEXTURE2);
+          gl.bindTexture(gl.TEXTURE_2D, tex[2]);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, pal);
+          palV = foil.v;
+        }
         var ready = false, current = '', loadId = 0;
 
         function load(img, unit, id){
@@ -394,17 +416,26 @@
 
         var last = '';
         return {
-          draw: function(lx, ly){
+          /* lx/ly: hotspot centre, ang: band angle, bcx/bcy: band layer centre (all CSS px, viewport) */
+          draw: function(lx, ly, ang, bcx, bcy){
             if (!ready) return;
             var r = deck.getBoundingClientRect();
-            var u = [(lx - r.left) / r.width, (ly - r.top) / r.height];
-            var key = u[0].toFixed(4) + u[1].toFixed(4) + cfg.relief + cfg.glint + cfg.frame + cfg.flowers;
+            var key = [lx.toFixed(1), ly.toFixed(1), ang.toFixed(2), foil.v, r.width, r.height, cfg.relief, cfg.frame, cfg.flowers].join();
             if (key === last) return;                 /* nothing moved: skip the redraw */
             last = key;
-            gl.uniform2f(U.uLight, u[0], u[1]);
-            gl.uniform1f(U.uAspect, r.width / r.height);
+            if (palV !== foil.v) uploadPalette();
+            var vw = innerWidth, vh = innerHeight, rad = ang * Math.PI / 180;
+            var dx = Math.sin(rad), dy = -Math.cos(rad);
+            gl.uniform4f(U.uDeck, r.left, r.top, r.width, r.height);
+            gl.uniform2f(U.uHotPos, lx, ly);
+            gl.uniform2f(U.uBandC, bcx, bcy);
+            gl.uniform2f(U.uDir, dx, dy);
+            gl.uniform1f(U.uLen, Math.abs(2 * vw * dx) + Math.abs(2 * vh * dy));
+            gl.uniform3f(U.uHot, foil.hot[0] / 255, foil.hot[1] / 255, foil.hot[2] / 255);
+            gl.uniform1f(U.uHotA, foil.hotA);
+            gl.uniform1f(U.uMidA, foil.midA);
+            gl.uniform1f(U.uRad, cfg.size * Math.max(vw, vh) / 100);
             gl.uniform1f(U.uAmt, cfg.relief / 100);
-            gl.uniform1f(U.uGlint, cfg.glint / 100);
             gl.uniform1f(U.uFrame, cfg.frame / 100);
             gl.uniform1f(U.uFlower, cfg.flowers / 100);
             gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -438,7 +469,7 @@
         var lx = cur.x * vw, ly = cur.y * vh;
         /* the brushed bands drift a little slower than the hotspot, so they shimmer against it */
         var bx2 = (cur.x - .5) * vw * .6, by2 = (cur.y - .5) * vh * .6;
-        relief.draw(lx, ly);
+        relief.draw(lx, ly, ang, bx2 + vw / 2, by2 + vh / 2);
         for (var i = 0; i < foils.length; i++){
           var r = foils[i].getBoundingClientRect();
           var s = foils[i].style;
