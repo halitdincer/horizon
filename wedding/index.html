@@ -23,10 +23,11 @@
       /* gold foil: a moving specular hotspot over anisotropic brushed-gold bands.
          Each layer is 200vw x 200vh; JS slides it so the hotspot sits under the "light". */
       --foil:
-        radial-gradient(circle 24vmax at 50% 50%, rgba(255,251,232,.95), rgba(255,238,178,.55) 30%, rgba(255,238,178,0) 70%),
+        /* kept in the mid-gold range (nothing near the paper colour) so text stays readable at peak shine */
+        radial-gradient(circle 24vmax at 50% 50%, rgba(196,156,72,.5), rgba(196,156,72,.22) 35%, rgba(196,156,72,0) 70%),
         linear-gradient(112deg,
-          #5f4519 0%, #9c7631 9%, #e2c57c 16%, #8a6627 24%, #c9a453 32%, #f3e2a6 40%,
-          #a27b30 47%, #6b4e1d 53%, #b88f3f 60%, #f0d993 67%, #93702b 75%, #d6b464 84%, #6a4c1b 92%, #a8823a 100%);
+          #4f3912 0%, #7a5a22 9%, #a07c36 16%, #6e5120 24%, #93712f 32%, #ad8840 40%,
+          #80612a 47%, #5a4218 53%, #8a6a2c 60%, #a8853d 67%, #735626 75%, #9a7834 84%, #573f16 92%, #7f5f27 100%);
     }
     *,*::before,*::after{ box-sizing:border-box; }
     html,body{ height:100%; margin:0; }
@@ -80,7 +81,7 @@
       background-position:var(--bx,-50vw) var(--by,-50vh);
       -webkit-background-clip:text; background-clip:text;
       -webkit-text-fill-color:transparent; color:transparent;
-      filter:drop-shadow(0 .6px .4px rgba(70,46,12,.35));
+      filter:drop-shadow(0 .6px .5px rgba(50,32,8,.4));
     }
     .foil.divider{
       -webkit-background-clip:border-box; background-clip:border-box;
