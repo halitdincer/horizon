@@ -158,6 +158,7 @@
       <label><span class="tune__row">Light size <output data-for="size"></output></span><input type="range" data-key="size" min="10" max="45" step="1"></label>
       <label><span class="tune__row">Tilt sensitivity <output data-for="sens"></output></span><input type="range" data-key="sens" min="0" max="100" step="1"></label>
       <label><span class="tune__row">Speed <output data-for="speed"></output></span><input type="range" data-key="speed" min="2" max="30" step="1"></label>
+      <label><span class="tune__row">Band rotation <output data-for="turn"></output></span><input type="range" data-key="turn" min="0" max="100" step="1"></label>
       <button class="tune__reset" id="tuneReset" type="button">Reset</button>
     </div>
   </div>
@@ -171,11 +172,13 @@
       var clamp = function(v, a, b){ return Math.min(b, Math.max(a, v)); };
 
       /* light position as a fraction of the viewport (0.5,0.5 = centre) */
-      var target = { x: .3, y: .25 }, cur = { x: .3, y: .25 };
+      var target = { x: .3, y: .25, spin: 0 }, cur = { x: .3, y: .25, spin: 0 };
+      var alpha0 = null;
+      var wrap = function(d){ return ((d % 360) + 540) % 360 - 180; };
       var gotSensor = false, lastPointer = 0;
 
       /* ---- tunable settings (remembered per browser) ---- */
-      var DEFAULTS = { strength: 70, size: 24, sens: 70, speed: 12 };
+      var DEFAULTS = { strength: 70, size: 24, sens: 70, speed: 12, turn: 60 };
       var KEY = 'wedding-shine-v1';
       var cfg = Object.assign({}, DEFAULTS);
       try { Object.assign(cfg, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch(e){}
@@ -192,7 +195,7 @@
         var bands = STOPS.map(function(s, i){ return 'rgb(' + mix(hex(MUTED[i]), hex(BRIGHT[i]), t).join(',') + ') ' + s + '%'; }).join(',');
         document.documentElement.style.setProperty('--foil',
           'radial-gradient(circle ' + cfg.size + 'vmax at 50% 50%, rgba(' + hot + ',' + hotA + '), rgba(' + hot + ',' + midA + ') 32%, rgba(' + hot + ',0) 70%),' +
-          'linear-gradient(112deg,' + bands + ')');
+          'linear-gradient(calc(var(--ang, 112) * 1deg),' + bands + ')');
       }
       /* degrees of tilt that sweep the light edge to edge: 100° at 0, 20° at 100 */
       var tiltSpan = function(){ return 100 - cfg.sens * .8; };
@@ -234,6 +237,11 @@
         if (!gotSensor){ gotSensor = true; hideHint(); }
         var ang = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
         var p = e.beta, r = e.gamma;
+        /* turning the phone in its own plane: keep the bands roughly fixed in the room */
+        if (e.alpha != null){
+          if (alpha0 == null) alpha0 = e.alpha;
+          target.spin = wrap(e.alpha - alpha0);
+        }
         if (ang === 90){ p = -e.gamma; r = e.beta; }
         else if (ang === 270 || ang === -90){ p = e.gamma; r = -e.beta; }
         /* phone held at ~55° is "neutral"; tiltSpan() degrees sweep the light across the screen */
@@ -287,6 +295,12 @@
         var k = 1 - Math.exp(-dt * cfg.speed);
         cur.x += (target.x - cur.x) * k;
         cur.y += (target.y - cur.y) * k;
+        cur.spin += wrap(target.spin - cur.spin) * k;
+
+        /* band direction follows the tilt (and in-plane rotation) instead of staying at one angle */
+        var f = cfg.turn / 100;
+        var ang = 112 + f * ((cur.x - .5) * 150 + (cur.y - .5) * 75 + cur.spin);
+        document.documentElement.style.setProperty('--ang', ang.toFixed(1));
 
         var vw = innerWidth, vh = innerHeight;
         var lx = cur.x * vw, ly = cur.y * vh;
