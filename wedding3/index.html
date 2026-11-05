@@ -127,6 +127,15 @@
     .relief{ position:absolute; inset:0; width:100%; height:100%; display:block; opacity:0; transition:opacity .6s var(--ease); }
     .relief.ready{ opacity:1; }
     .tune__menu{ max-height:calc(100vh - 80px); overflow-y:auto; }
+    .presets{ display:grid; grid-template-columns:repeat(3,1fr); gap:.4rem; margin-top:.55rem; }
+    .preset{ font:600 .6rem/1.2 var(--font-sans); letter-spacing:.04em; padding:.55rem .2rem; border-radius:10px; cursor:pointer;
+      border:1px solid rgba(90,74,44,.25); background:rgba(255,255,255,.35); color:#5a4a2c; }
+    .preset[aria-pressed="true"]{ background:#8a6a2c; border-color:#8a6a2c; color:#fff; }
+    .fine summary{ cursor:pointer; list-style:none; }
+    .fine summary::-webkit-details-marker{ display:none; }
+    .fine summary::after{ content:" +"; }
+    .fine[open] summary::after{ content:" −"; }
+    .tune__sep--first{ margin-top:0; padding-top:0; border-top:0; }
     .tune__sep{ margin:.9rem 0 0; padding-top:.7rem; border-top:1px solid rgba(90,74,44,.15); font-size:.58rem; letter-spacing:.14em; text-transform:uppercase; opacity:.55; }
 
     @media (prefers-reduced-motion:reduce){ .fade{ animation:none; } }
@@ -161,16 +170,19 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
     </button>
     <div class="tune__menu" id="tuneMenu">
+      <p class="tune__sep tune__sep--first">Presets</p>
+      <div class="presets" id="presets"></div>
+      <details class="fine">
+      <summary class="tune__sep">Fine-tune</summary>
       <label><span class="tune__row">Shine <output data-for="strength"></output></span><input type="range" data-key="strength" min="0" max="100" step="1"></label>
       <label><span class="tune__row">Light size <output data-for="size"></output></span><input type="range" data-key="size" min="10" max="45" step="1"></label>
       <label><span class="tune__row">Tilt sensitivity <output data-for="sens"></output></span><input type="range" data-key="sens" min="0" max="100" step="1"></label>
       <label><span class="tune__row">Speed <output data-for="speed"></output></span><input type="range" data-key="speed" min="2" max="30" step="1"></label>
       <label><span class="tune__row">Band rotation <output data-for="turn"></output></span><input type="range" data-key="turn" min="0" max="100" step="1"></label>
-      <p class="tune__sep">Embossing</p>
+      <p class="tune__sep">Frame</p>
       <label><span class="tune__row">Foil on lines <output data-for="relief"></output></span><input type="range" data-key="relief" min="0" max="100" step="1"></label>
       <label><span class="tune__row">Edge flashes <output data-for="flash"></output></span><input type="range" data-key="flash" min="0" max="100" step="1"></label>
-      <label><span class="tune__row">Frame <output data-for="frame"></output></span><input type="range" data-key="frame" min="0" max="100" step="1"></label>
-      <label><span class="tune__row">Flowers <output data-for="flowers"></output></span><input type="range" data-key="flowers" min="0" max="100" step="1"></label>
+      </details>
       <button class="tune__reset" id="tuneReset" type="button">Reset</button>
     </div>
   </div>
@@ -191,8 +203,20 @@
       var gotSensor = false, lastPointer = 0;
 
       /* ---- tunable settings (remembered per browser) ---- */
-      var DEFAULTS = { strength: 70, size: 16, sens: 70, speed: 12, turn: 60, relief: 70, flash: 70, frame: 100, flowers: 70 };
-      var KEY = 'wedding3-shine-v1';
+      var PRESETS = [
+        { name: 'Whisper',     strength: 40,  size: 14, sens: 55, speed: 9,  turn: 40,  relief: 45,  flash: 35 },
+        { name: 'Satin',       strength: 55,  size: 20, sens: 60, speed: 10, turn: 50,  relief: 55,  flash: 50 },
+        { name: 'Classic',     strength: 70,  size: 16, sens: 70, speed: 12, turn: 60,  relief: 70,  flash: 70 },
+        { name: 'Candlelight', strength: 60,  size: 26, sens: 50, speed: 6,  turn: 35,  relief: 65,  flash: 45 },
+        { name: 'Brushed',     strength: 65,  size: 22, sens: 65, speed: 12, turn: 100, relief: 80,  flash: 55 },
+        { name: 'Gilded',      strength: 60,  size: 16, sens: 70, speed: 12, turn: 60,  relief: 100, flash: 95 },
+        { name: 'Mirror',      strength: 90,  size: 10, sens: 85, speed: 18, turn: 60,  relief: 75,  flash: 90 },
+        { name: 'Sparkle',     strength: 75,  size: 12, sens: 80, speed: 16, turn: 80,  relief: 70,  flash: 100 },
+        { name: 'Dramatic',    strength: 100, size: 18, sens: 90, speed: 22, turn: 80,  relief: 90,  flash: 100 }
+      ];
+      var settingsOf = function(p){ var o = Object.assign({}, p); delete o.name; o.preset = p.name; return o; };
+      var DEFAULTS = settingsOf(PRESETS[2]);
+      var KEY = 'wedding3-shine-v2';
       var cfg = Object.assign({}, DEFAULTS);
       try { Object.assign(cfg, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch(e){}
 
@@ -220,7 +244,15 @@
 
       var tune = document.getElementById('tune'), tuneBtn = document.getElementById('tuneBtn');
       var inputs = Array.prototype.slice.call(tune.querySelectorAll('input[data-key]'));
+      var presetBox = document.getElementById('presets');
+      PRESETS.forEach(function(p){
+        var b = document.createElement('button');
+        b.type = 'button'; b.className = 'preset'; b.textContent = p.name;
+        b.addEventListener('click', function(){ cfg = settingsOf(p); syncInputs(); applyFoil(); save(); });
+        presetBox.appendChild(b);
+      });
       function syncInputs(){
+        Array.prototype.forEach.call(presetBox.children, function(b){ b.setAttribute('aria-pressed', b.textContent === cfg.preset); });
         inputs.forEach(function(inp){
           inp.value = cfg[inp.dataset.key];
           tune.querySelector('output[data-for="' + inp.dataset.key + '"]').textContent = cfg[inp.dataset.key];
@@ -230,6 +262,7 @@
       inputs.forEach(function(inp){
         inp.addEventListener('input', function(){
           cfg[inp.dataset.key] = +inp.value;
+          if (cfg.preset){ cfg.preset = ''; syncInputs(); }       /* hand-tuned: no preset highlighted */
           tune.querySelector('output[data-for="' + inp.dataset.key + '"]').textContent = inp.value;
           applyFoil(); save();
         });
@@ -323,7 +356,7 @@
           'uniform vec4 uDeck;',                                  /* deck rect in CSS px: left, top, width, height */
           'uniform vec2 uHotPos, uBandC, uDir;',
           'uniform vec3 uHot;',
-          'uniform float uHotA, uMidA, uRad, uLen, uAmt, uFlash, uFrame, uFlower, uDist;',
+          'uniform float uHotA, uMidA, uRad, uLen, uAmt, uFlash, uDist;',
           'void main(){',
           '  vec3 base = texture2D(uBase, v).rgb;',
           '  vec3 rel = texture2D(uRelief, v).rgb;',
@@ -339,8 +372,7 @@
           '  foil *= mix(1., lum / .82, .6);',
           /* only on the embossed lines: where the relief map has a slope */
           '  float edge = smoothstep(.06, .45, length(rel.rg * 2. - 1.));',
-          '  float sage = 1. - smoothstep(.70, .80, lum);',     /* flower texture is darker than the cream frame */
-          '  float w = rel.b * edge * mix(uFrame, uFlower, sage);',
+          '  float w = rel.b * edge;',                          /* B is already frame-only (no flowers) */
           /* mirror flash: flat foil reflects the light right at the hotspot; away from it, only
              edges tilted toward the hotspot can bounce the light into the eye */
           '  vec3 N = normalize(vec3(-(rel.rg * 2. - 1.) * 1.3, 1.));',
@@ -365,7 +397,7 @@
         gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
 
         var U = {};
-        ['uBase','uRelief','uPal','uDeck','uHotPos','uBandC','uDir','uHot','uHotA','uMidA','uRad','uLen','uAmt','uFlash','uFrame','uFlower','uDist']
+        ['uBase','uRelief','uPal','uDeck','uHotPos','uBandC','uDir','uHot','uHotA','uMidA','uRad','uLen','uAmt','uFlash','uDist']
           .forEach(function(n){ U[n] = gl.getUniformLocation(prog, n); });
         gl.uniform1i(U.uBase, 0); gl.uniform1i(U.uRelief, 1); gl.uniform1i(U.uPal, 2);
 
@@ -435,7 +467,7 @@
           draw: function(lx, ly, ang, bcx, bcy){
             if (!ready) return;
             var r = deck.getBoundingClientRect();
-            var key = [lx.toFixed(1), ly.toFixed(1), ang.toFixed(2), foil.v, r.width, r.height, cfg.relief, cfg.flash, cfg.frame, cfg.flowers, cfg.size, cfg.strength].join();
+            var key = [lx.toFixed(1), ly.toFixed(1), ang.toFixed(2), foil.v, r.width, r.height, cfg.relief, cfg.flash, cfg.size, cfg.strength].join();
             if (key === last) return;                 /* nothing moved: skip the redraw */
             last = key;
             if (palV !== foil.v) uploadPalette();
@@ -453,8 +485,6 @@
             gl.uniform1f(U.uAmt, cfg.relief / 100);
             gl.uniform1f(U.uFlash, cfg.flash / 100);
             gl.uniform1f(U.uDist, .7 * Math.max(vw, vh));
-            gl.uniform1f(U.uFrame, cfg.frame / 100);
-            gl.uniform1f(U.uFlower, cfg.flowers / 100);
             gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
             cvs.classList.add('ready');
           }

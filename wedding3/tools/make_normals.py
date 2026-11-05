@@ -2,7 +2,8 @@
 
 For every bg-*.jpg this writes bg-*-relief.jpg:
   R, G = surface slope (x, y) of the embossing, 128 = flat
-  B    = relief mask, 0 on the flat paper and 255 on embossed lines
+  B    = relief mask, 0 on the flat paper and the sage flower texture, 255 on the
+         embossed cream frame
 
 The embossing is only visible as light/dark edges, so the image's own luminance
 (band-passed to drop the paper grain and the slow lighting falloff) is treated as a
@@ -37,6 +38,12 @@ for path in sorted(glob.glob("bg-[0-9]*x[0-9]*.jpg")):
     lo, hi = np.percentile(energy, 45), np.percentile(energy, 85)
     mask = np.clip((energy - lo) / (hi - lo), 0, 1)
     mask = ndimage.gaussian_filter(mask * mask * (3 - 2 * mask), 2)
+
+    # frame only: the cream frame is clearly lighter than the sage flowers once blurred
+    # (flowers top out near 0.72, the frame starts around 0.74)
+    region = ndimage.gaussian_filter(lum, 5)
+    frame = np.clip((region - 0.712) / (0.745 - 0.712), 0, 1)
+    mask *= ndimage.gaussian_filter(frame * frame * (3 - 2 * frame), 1.5)
 
     out = np.stack([sx * 0.5 + 0.5, sy * 0.5 + 0.5, mask], axis=-1)
     name = path.replace(".jpg", "-relief.jpg")
