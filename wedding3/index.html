@@ -182,6 +182,8 @@
       <p class="tune__sep">Frame</p>
       <label><span class="tune__row">Foil on lines <output data-for="relief"></output></span><input type="range" data-key="relief" min="0" max="100" step="1"></label>
       <label><span class="tune__row">Edge flashes <output data-for="flash"></output></span><input type="range" data-key="flash" min="0" max="100" step="1"></label>
+      <label><span class="tune__row">Running light <output data-for="runner"></output></span><input type="range" data-key="runner" min="0" max="100" step="1"></label>
+      <label><span class="tune__row">Running speed <output data-for="runSpeed"></output></span><input type="range" data-key="runSpeed" min="0" max="100" step="1"></label>
       </details>
       <button class="tune__reset" id="tuneReset" type="button">Reset</button>
     </div>
@@ -215,7 +217,8 @@
         { name: 'Dramatic',    strength: 100, size: 18, sens: 90, speed: 22, turn: 80,  relief: 90,  flash: 100 }
       ];
       var settingsOf = function(p){ var o = Object.assign({}, p); delete o.name; o.preset = p.name; return o; };
-      var DEFAULTS = settingsOf(PRESETS[2]);
+      /* the running light is its own thing: presets leave it alone */
+      var DEFAULTS = Object.assign(settingsOf(PRESETS[2]), { runner: 70, runSpeed: 70 });
       var KEY = 'wedding3-shine-v2';
       var cfg = Object.assign({}, DEFAULTS);
       try { Object.assign(cfg, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch(e){}
@@ -248,7 +251,7 @@
       PRESETS.forEach(function(p){
         var b = document.createElement('button');
         b.type = 'button'; b.className = 'preset'; b.textContent = p.name;
-        b.addEventListener('click', function(){ cfg = settingsOf(p); syncInputs(); applyFoil(); save(); });
+        b.addEventListener('click', function(){ cfg = Object.assign({}, cfg, settingsOf(p)); syncInputs(); applyFoil(); save(); });
         presetBox.appendChild(b);
       });
       function syncInputs(){
@@ -356,7 +359,8 @@
           'uniform vec4 uDeck;',                                  /* deck rect in CSS px: left, top, width, height */
           'uniform vec2 uHotPos, uBandC, uDir;',
           'uniform vec3 uHot;',
-          'uniform float uHotA, uMidA, uRad, uLen, uAmt, uFlash, uDist;',
+          'uniform float uHotA, uMidA, uRad, uLen, uAmt, uFlash, uDist, uRunR, uRunAmt;',
+          'uniform vec2 uRun[6]; uniform float uRunW[6];',
           'void main(){',
           '  vec3 base = texture2D(uBase, v).rgb;',
           '  vec3 rel = texture2D(uRelief, v).rgb;',
@@ -379,6 +383,10 @@
           '  vec3 H = normalize(vec3((uHotPos - px) / uDist, 1.));',
           '  float flash = pow(max(dot(N, H), 0.), 60.);',
           '  vec3 col = mix(base, foil, uAmt * w) + uFlash * w * flash * uHot * 1.1;',
+          /* running light: a dot (plus a short fading tail) travelling along the border lines */
+          '  float glow = 0.;',
+          '  for (int i = 0; i < 6; i++){ vec2 dd = px - uRun[i]; glow += uRunW[i] * exp(-dot(dd, dd) / (uRunR * uRunR)); }',
+          '  col += uRunAmt * glow * rel.b * mix(.5, 1., edge) * uHot * 1.25;',
           '  gl_FragColor = vec4(clamp(col, 0., 1.), 1.);',
           '}'
         ].join('\n');
@@ -397,8 +405,9 @@
         gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
 
         var U = {};
-        ['uBase','uRelief','uPal','uDeck','uHotPos','uBandC','uDir','uHot','uHotA','uMidA','uRad','uLen','uAmt','uFlash','uDist']
+        ['uBase','uRelief','uPal','uDeck','uHotPos','uBandC','uDir','uHot','uHotA','uMidA','uRad','uLen','uAmt','uFlash','uDist','uRunR','uRunAmt','uRun','uRunW']
           .forEach(function(n){ U[n] = gl.getUniformLocation(prog, n); });
+        gl.uniform1fv(U.uRunW, [1, .62, .4, .25, .15, .08]);
         gl.uniform1i(U.uBase, 0); gl.uniform1i(U.uRelief, 1); gl.uniform1i(U.uPal, 2);
 
         function texture(unit){
@@ -424,7 +433,9 @@
           gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, pal);
           palV = foil.v;
         }
-        var ready = false, current = '', loadId = 0;
+        var ready = false, current = '', loadId = 0, rect = null;
+        /* border-line rectangle per frame image (left, top, right, bottom as fractions), from tools/make_normals.py */
+        var FRAME_PATH = {"bg-16x9.jpg":[0.061,0.0988,0.936,0.9086],"bg-3x4.jpg":[0.0727,0.0663,0.9245,0.933],"bg-4x3.jpg":[0.058,0.0967,0.9365,0.8987],"bg-9x16.jpg":[0.0723,0.076,0.9256,0.9199],"bg-9x20.jpg":[0.0904,0.0866,0.9061,0.9214]};
 
         function load(img, unit, id){
           return new Promise(function(res, rej){
@@ -445,6 +456,7 @@
           var m = /url\(["']?([^"')]+)["']?\)/.exec(getComputedStyle(deck).backgroundImage);
           if (!m || m[1] === current) return;
           current = m[1];
+          rect = FRAME_PATH[current.split('/').pop()] || null;
           var id = ++loadId;
           ready = false; cvs.classList.remove('ready');
           Promise.all([load(current, 0, id), load(current.replace(/\.jpg$/, '-relief.jpg'), 1, id)])
@@ -464,11 +476,12 @@
         var last = '';
         return {
           /* lx/ly: hotspot centre, ang: band angle, bcx/bcy: band layer centre (all CSS px, viewport) */
-          draw: function(lx, ly, ang, bcx, bcy){
+          draw: function(lx, ly, ang, bcx, bcy, now){
             if (!ready) return;
             var r = deck.getBoundingClientRect();
-            var key = [lx.toFixed(1), ly.toFixed(1), ang.toFixed(2), foil.v, r.width, r.height, cfg.relief, cfg.flash, cfg.size, cfg.strength].join();
-            if (key === last) return;                 /* nothing moved: skip the redraw */
+            var running = rect && cfg.runner > 0 && !reduce.matches;
+            var key = running ? '' : [lx.toFixed(1), ly.toFixed(1), ang.toFixed(2), foil.v, r.width, r.height, cfg.relief, cfg.flash, cfg.size, cfg.strength].join();
+            if (key && key === last) return;          /* nothing moved: skip the redraw */
             last = key;
             if (palV !== foil.v) uploadPalette();
             var vw = innerWidth, vh = innerHeight, rad = ang * Math.PI / 180;
@@ -485,6 +498,23 @@
             gl.uniform1f(U.uAmt, cfg.relief / 100);
             gl.uniform1f(U.uFlash, cfg.flash / 100);
             gl.uniform1f(U.uDist, .7 * Math.max(vw, vh));
+            gl.uniform1f(U.uRunAmt, running ? cfg.runner / 100 : 0);
+            if (running){
+              /* clockwise round the border rectangle at constant speed: 30 s a lap at 0, 4 s at 100 */
+              var x0 = rect[0] * r.width, y0 = rect[1] * r.height, x1 = rect[2] * r.width, y1 = rect[3] * r.height;
+              var w = x1 - x0, h = y1 - y0, per = 2 * (w + h);
+              var lap = 30 - cfg.runSpeed * .26, at = (now / 1000 / lap % 1) * per, pts = [];
+              for (var i = 0; i < 6; i++){
+                var d = ((at - i * .011 * per) % per + per) % per, x, y;
+                if (d < w){ x = x0 + d; y = y0; }
+                else if (d < w + h){ x = x1; y = y0 + d - w; }
+                else if (d < 2 * w + h){ x = x1 - (d - w - h); y = y1; }
+                else { x = x0; y = y1 - (d - 2 * w - h); }
+                pts.push(r.left + x, r.top + y);
+              }
+              gl.uniform2fv(U.uRun, pts);
+              gl.uniform1f(U.uRunR, .03 * Math.min(r.width, r.height));
+            }
             gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
             cvs.classList.add('ready');
           }
@@ -516,7 +546,7 @@
         var lx = cur.x * vw, ly = cur.y * vh;
         /* the brushed bands drift a little slower than the hotspot, so they shimmer against it */
         var bx2 = (cur.x - .5) * vw * .6, by2 = (cur.y - .5) * vh * .6;
-        relief.draw(lx, ly, ang, bx2 + vw / 2, by2 + vh / 2);
+        relief.draw(lx, ly, ang, bx2 + vw / 2, by2 + vh / 2, now);
         for (var i = 0; i < foils.length; i++){
           var r = foils[i].getBoundingClientRect();
           var s = foils[i].style;
