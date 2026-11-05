@@ -101,6 +101,28 @@
       transition:opacity .6s var(--ease); }
     .hint[hidden]{ display:block; opacity:0; pointer-events:none; }
 
+    /* shine settings: gear in the corner, opens on hover (desktop) or tap (phone) */
+    .tune{ position:fixed; top:calc(env(safe-area-inset-top,0px) + 12px); right:calc(env(safe-area-inset-right,0px) + 12px); z-index:6;
+      font:500 .72rem/1.3 var(--font-sans); color:#3f3220; touch-action:auto; }
+    .tune__btn{ width:40px; height:40px; margin-left:auto; display:grid; place-items:center; border-radius:999px; cursor:pointer;
+      background:rgba(235,227,214,.82); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
+      border:1px solid rgba(90,74,44,.18); color:#5a4a2c; padding:0; }
+    .tune__btn svg{ width:18px; height:18px; }
+    .tune__btn:focus-visible{ outline:2px solid #8a6a2c; outline-offset:2px; }
+    .tune__menu{ position:absolute; top:46px; right:0; width:min(15.5rem, calc(100vw - 24px)); padding:.9rem 1rem 1rem;
+      background:rgba(244,238,228,.94); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px);
+      border:1px solid rgba(90,74,44,.18); border-radius:14px; box-shadow:0 8px 28px rgba(50,32,8,.16);
+      opacity:0; visibility:hidden; transform:translateY(-4px); transition:opacity .2s var(--ease), transform .2s var(--ease), visibility 0s linear .2s; }
+    .tune.open .tune__menu{ opacity:1; visibility:visible; transform:none; transition:opacity .2s var(--ease), transform .2s var(--ease); }
+    @media (hover:hover){ .tune:hover .tune__menu{ opacity:1; visibility:visible; transform:none; transition:opacity .2s var(--ease), transform .2s var(--ease); } }
+    .tune label{ display:block; margin-top:.7rem; }
+    .tune label:first-child{ margin-top:0; }
+    .tune__row{ display:flex; justify-content:space-between; letter-spacing:.06em; text-transform:uppercase; font-weight:600; font-size:.62rem; }
+    .tune__row output{ font-variant-numeric:tabular-nums; opacity:.7; }
+    .tune input[type=range]{ width:100%; margin:.35rem 0 0; accent-color:#8a6a2c; }
+    .tune__reset{ margin-top:.9rem; width:100%; font:600 .62rem/1 var(--font-sans); letter-spacing:.12em; text-transform:uppercase;
+      padding:.6rem; border-radius:999px; border:1px solid rgba(90,74,44,.3); background:transparent; color:#5a4a2c; cursor:pointer; }
+
     @media (prefers-reduced-motion:reduce){ .fade{ animation:none; } }
   </style>
 </head>
@@ -127,6 +149,19 @@
 
   <button class="hint" id="hint" type="button" hidden></button>
 
+  <div class="tune" id="tune">
+    <button class="tune__btn" id="tuneBtn" type="button" aria-label="Shine settings" aria-expanded="false" aria-controls="tuneMenu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
+    </button>
+    <div class="tune__menu" id="tuneMenu">
+      <label><span class="tune__row">Shine <output data-for="strength"></output></span><input type="range" data-key="strength" min="0" max="100" step="1"></label>
+      <label><span class="tune__row">Light size <output data-for="size"></output></span><input type="range" data-key="size" min="10" max="45" step="1"></label>
+      <label><span class="tune__row">Tilt sensitivity <output data-for="sens"></output></span><input type="range" data-key="sens" min="0" max="100" step="1"></label>
+      <label><span class="tune__row">Speed <output data-for="speed"></output></span><input type="range" data-key="speed" min="2" max="30" step="1"></label>
+      <button class="tune__reset" id="tuneReset" type="button">Reset</button>
+    </div>
+  </div>
+
   <script>
     (function(){
       var foils = Array.prototype.slice.call(document.querySelectorAll('.foil'));
@@ -139,6 +174,58 @@
       var target = { x: .3, y: .25 }, cur = { x: .3, y: .25 };
       var gotSensor = false, lastPointer = 0;
 
+      /* ---- tunable settings (remembered per browser) ---- */
+      var DEFAULTS = { strength: 50, size: 24, sens: 70, speed: 12 };
+      var KEY = 'wedding-shine-v1';
+      var cfg = Object.assign({}, DEFAULTS);
+      try { Object.assign(cfg, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch(e){}
+
+      /* foil colours: 0 = muted (always readable), 100 = full bright foil */
+      var MUTED  = ['#4f3912','#7a5a22','#a07c36','#6e5120','#93712f','#ad8840','#80612a','#5a4218','#8a6a2c','#a8853d','#735626','#9a7834','#573f16','#7f5f27'];
+      var BRIGHT = ['#5f4519','#9c7631','#e2c57c','#8a6627','#c9a453','#f3e2a6','#a27b30','#6b4e1d','#b88f3f','#f0d993','#93702b','#d6b464','#6a4c1b','#a8823a'];
+      var STOPS  = [0,9,16,24,32,40,47,53,60,67,75,84,92,100];
+      var hex = function(h){ return [1,3,5].map(function(i){ return parseInt(h.slice(i, i + 2), 16); }); };
+      var mix = function(a, b, t){ return a.map(function(v, i){ return Math.round(v + (b[i] - v) * t); }); };
+      function applyFoil(){
+        var t = cfg.strength / 100;
+        var hot = mix([196,156,72], [255,250,228], t), hotA = .5 + .45 * t, midA = .22 + .33 * t;
+        var bands = STOPS.map(function(s, i){ return 'rgb(' + mix(hex(MUTED[i]), hex(BRIGHT[i]), t).join(',') + ') ' + s + '%'; }).join(',');
+        document.documentElement.style.setProperty('--foil',
+          'radial-gradient(circle ' + cfg.size + 'vmax at 50% 50%, rgba(' + hot + ',' + hotA + '), rgba(' + hot + ',' + midA + ') 32%, rgba(' + hot + ',0) 70%),' +
+          'linear-gradient(112deg,' + bands + ')');
+      }
+      /* degrees of tilt that sweep the light edge to edge: 100° at 0, 20° at 100 */
+      var tiltSpan = function(){ return 100 - cfg.sens * .8; };
+
+      var tune = document.getElementById('tune'), tuneBtn = document.getElementById('tuneBtn');
+      var inputs = Array.prototype.slice.call(tune.querySelectorAll('input[data-key]'));
+      function syncInputs(){
+        inputs.forEach(function(inp){
+          inp.value = cfg[inp.dataset.key];
+          tune.querySelector('output[data-for="' + inp.dataset.key + '"]').textContent = cfg[inp.dataset.key];
+        });
+      }
+      function save(){ try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch(e){} }
+      inputs.forEach(function(inp){
+        inp.addEventListener('input', function(){
+          cfg[inp.dataset.key] = +inp.value;
+          tune.querySelector('output[data-for="' + inp.dataset.key + '"]').textContent = inp.value;
+          applyFoil(); save();
+        });
+      });
+      document.getElementById('tuneReset').addEventListener('click', function(){
+        cfg = Object.assign({}, DEFAULTS); syncInputs(); applyFoil(); save();
+      });
+      tuneBtn.addEventListener('click', function(e){
+        e.stopPropagation();
+        var open = tune.classList.toggle('open');
+        tuneBtn.setAttribute('aria-expanded', open);
+      });
+      document.addEventListener('pointerdown', function(e){
+        if (!tune.contains(e.target)){ tune.classList.remove('open'); tuneBtn.setAttribute('aria-expanded', false); }
+      });
+      syncInputs(); applyFoil();
+
       function showHint(text){ hint.textContent = text; hint.hidden = false; }
       function hideHint(){ hint.hidden = true; }
 
@@ -149,9 +236,10 @@
         var p = e.beta, r = e.gamma;
         if (ang === 90){ p = -e.gamma; r = e.beta; }
         else if (ang === 270 || ang === -90){ p = e.gamma; r = -e.beta; }
-        /* phone held at ~55° is "neutral"; ±30° of tilt sweeps the light across the screen */
-        target.x = clamp(.5 + r / 60, -.2, 1.2);
-        target.y = clamp(.5 + (p - 55) / 60, -.2, 1.2);
+        /* phone held at ~55° is "neutral"; tiltSpan() degrees sweep the light across the screen */
+        var span = tiltSpan();
+        target.x = clamp(.5 + r / span, -.2, 1.2);
+        target.y = clamp(.5 + (p - 55) / span, -.2, 1.2);
       }
       function listen(){ addEventListener('deviceorientation', onOrient); }
 
@@ -160,13 +248,15 @@
 
       if (needsPermission){
         showHint('Dokunun ve telefonu eğin');
-        var ask = function(){
+        var asked = false;
+        var ask = function(e){
+          if (asked || tune.contains(e.target)) return;
+          asked = true;
           DeviceOrientationEvent.requestPermission().then(function(res){
             if (res === 'granted') listen(); else hideHint();
           }).catch(hideHint);
         };
-        hint.addEventListener('click', ask);
-        document.addEventListener('click', ask, { once:true });
+        document.addEventListener('click', ask);
       } else if ('DeviceOrientationEvent' in window){
         listen();
         if (coarse){
@@ -194,7 +284,7 @@
           target.y = .45 + .3 * Math.sin(t * .23 + 1);
         }
 
-        var k = 1 - Math.exp(-dt * 6);
+        var k = 1 - Math.exp(-dt * cfg.speed);
         cur.x += (target.x - cur.x) * k;
         cur.y += (target.y - cur.y) * k;
 
