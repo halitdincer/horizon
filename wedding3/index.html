@@ -109,43 +109,62 @@
       border:1px solid rgba(90,74,44,.18); color:#5a4a2c; padding:0; }
     .tune__btn svg{ width:18px; height:18px; }
     .tune__btn:focus-visible{ outline:2px solid #8a6a2c; outline-offset:2px; }
-    .tune__menu{ position:absolute; top:46px; right:0; width:min(15.5rem, calc(100vw - 24px)); padding:.9rem 1rem 1rem;
-      background:rgba(244,238,228,.94); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px);
-      border:1px solid rgba(90,74,44,.18); border-radius:14px; box-shadow:0 8px 28px rgba(50,32,8,.16);
+    .tune__menu{ position:absolute; top:46px; right:0; width:min(18rem, calc(100vw - 24px)); max-height:calc(100vh - 80px); max-height:calc(100dvh - 80px); overflow-y:auto;
+      padding:.5rem .75rem .75rem; -webkit-overflow-scrolling:touch;
+      background:rgba(246,241,232,.96); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px);
+      border:1px solid rgba(90,74,44,.16); border-radius:16px; box-shadow:0 10px 32px rgba(50,32,8,.18);
       opacity:0; visibility:hidden; transform:translateY(-4px); transition:opacity .2s var(--ease), transform .2s var(--ease), visibility 0s linear .2s; }
     .tune.open .tune__menu{ opacity:1; visibility:visible; transform:none; transition:opacity .2s var(--ease), transform .2s var(--ease); }
     @media (hover:hover){ .tune:hover .tune__menu{ opacity:1; visibility:visible; transform:none; transition:opacity .2s var(--ease), transform .2s var(--ease); } }
-    .tune label{ display:block; margin-top:.7rem; }
-    .tune label:first-child{ margin-top:0; }
-    .tune__row{ display:flex; justify-content:space-between; letter-spacing:.06em; text-transform:uppercase; font-weight:600; font-size:.62rem; }
-    .tune__row output{ font-variant-numeric:tabular-nums; opacity:.7; }
-    .tune input[type=range]{ width:100%; margin:.35rem 0 0; accent-color:#8a6a2c; }
-    .tune__reset{ margin-top:.9rem; width:100%; font:600 .62rem/1 var(--font-sans); letter-spacing:.12em; text-transform:uppercase;
-      padding:.6rem; border-radius:999px; border:1px solid rgba(90,74,44,.3); background:transparent; color:#5a4a2c; cursor:pointer; }
+
+    /* tabs */
+    .tabs{ display:grid; grid-template-columns:1fr 1fr; gap:3px; padding:3px; margin-bottom:.7rem; border-radius:11px; background:rgba(90,74,44,.1); position:sticky; top:0; z-index:1; }
+    .tab{ font:600 .64rem/1 var(--font-sans); letter-spacing:.12em; text-transform:uppercase; padding:.6rem 0; border:0; border-radius:8px; background:transparent; color:#6b5a3a; cursor:pointer; }
+    .tab[aria-selected="true"]{ background:#fffdf8; color:#3f3220; box-shadow:0 1px 3px rgba(50,32,8,.14); }
+    .tab:focus-visible, .chip:focus-visible, .tune__reset:focus-visible, .fine summary:focus-visible{ outline:2px solid #8a6a2c; outline-offset:2px; }
+    .pane[hidden]{ display:none; }
+
+    /* preset / pattern chips */
+    .chips{ display:grid; grid-template-columns:repeat(3,1fr); gap:.35rem; }
+    .chip{ font:600 .6rem/1.2 var(--font-sans); letter-spacing:.03em; padding:.6rem .15rem; border-radius:9px; cursor:pointer;
+      border:1px solid rgba(90,74,44,.2); background:rgba(255,255,255,.5); color:#5a4a2c; transition:background .15s, color .15s, border-color .15s; }
+    .chip:hover{ border-color:rgba(138,106,44,.55); }
+    .chip[aria-pressed="true"]{ background:#8a6a2c; border-color:#8a6a2c; color:#fff; }
+
+    /* cards with an on/off switch (frame tab) */
+    .card{ border:1px solid rgba(90,74,44,.14); border-radius:12px; background:rgba(255,255,255,.42); padding:.7rem .75rem .75rem; }
+    .card + .card{ margin-top:.55rem; }
+    .card__head{ display:flex; align-items:center; justify-content:space-between; gap:.6rem; }
+    .card__head b{ display:block; font-size:.72rem; font-weight:600; letter-spacing:.02em; }
+    .card__head small{ display:block; font-size:.62rem; opacity:.62; margin-top:.1rem; }
+    .card__body{ margin-top:.7rem; transition:opacity .2s; }
+    .card.off .card__body{ display:none; }
+    .switch{ flex:none; display:flex; cursor:pointer; margin:0; }
+    .switch input{ appearance:none; -webkit-appearance:none; width:36px; height:21px; margin:0; border-radius:999px; background:rgba(90,74,44,.28); position:relative; cursor:pointer; transition:background .2s; }
+    .switch input::after{ content:""; position:absolute; top:2.5px; left:2.5px; width:16px; height:16px; border-radius:50%; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.2); transition:transform .2s var(--ease); }
+    .switch input:checked{ background:#8a6a2c; }
+    .switch input:checked::after{ transform:translateX(15px); }
+    .switch input:focus-visible{ outline:2px solid #8a6a2c; outline-offset:2px; }
+
+    /* sliders */
+    .slider{ display:block; margin-top:.65rem; }
+    .chips + .slider, .slider:first-child{ margin-top:.8rem; }
+    .slider:first-child{ margin-top:0; }
+    .tune__row{ display:flex; justify-content:space-between; font-weight:500; font-size:.66rem; }
+    .tune__row output{ font-variant-numeric:tabular-nums; opacity:.6; }
+    .tune input[type=range]{ width:100%; margin:.3rem 0 0; accent-color:#8a6a2c; }
+    .fine{ margin-top:.7rem; border-top:1px solid rgba(90,74,44,.13); padding-top:.55rem; }
+    .fine summary{ cursor:pointer; list-style:none; display:flex; justify-content:space-between; font-size:.64rem; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:#6b5a3a; padding:.15rem 0; }
+    .fine summary::-webkit-details-marker{ display:none; }
+    .fine summary::after{ content:"+"; font-size:.85rem; line-height:1; }
+    .fine[open] summary::after{ content:"−"; }
+    .fine[open] summary{ margin-bottom:.6rem; }
+    .tune__reset{ margin-top:.75rem; width:100%; font:600 .6rem/1 var(--font-sans); letter-spacing:.12em; text-transform:uppercase;
+      padding:.6rem; border-radius:999px; border:1px solid rgba(90,74,44,.25); background:transparent; color:#6b5a3a; cursor:pointer; }
 
     /* relit embossing: a WebGL copy of the frame image drawn over the CSS one once it's ready */
     .relief{ position:absolute; inset:0; width:100%; height:100%; display:block; opacity:0; transition:opacity .6s var(--ease); }
     .relief.ready{ opacity:1; }
-    .tune__menu{ max-height:calc(100vh - 80px); overflow-y:auto; }
-    .presets{ display:grid; grid-template-columns:repeat(3,1fr); gap:.4rem; margin-top:.55rem; }
-    .preset{ font:600 .6rem/1.2 var(--font-sans); letter-spacing:.04em; padding:.55rem .2rem; border-radius:10px; cursor:pointer;
-      border:1px solid rgba(90,74,44,.25); background:rgba(255,255,255,.35); color:#5a4a2c; }
-    .preset[aria-pressed="true"]{ background:#8a6a2c; border-color:#8a6a2c; color:#fff; }
-    .fine summary{ cursor:pointer; list-style:none; }
-    .fine summary::-webkit-details-marker{ display:none; }
-    .fine summary::after{ content:" +"; }
-    .fine[open] summary::after{ content:" −"; }
-    .tune__head{ display:flex; align-items:flex-end; justify-content:space-between; gap:.5rem; margin-top:.9rem; padding-top:.7rem; border-top:1px solid rgba(90,74,44,.15); }
-    .tune__head .tune__sep{ margin:0; padding:0; border:0; }
-    .tune .switch{ display:flex; align-items:center; gap:.35rem; margin:0; cursor:pointer; font-size:.6rem; font-weight:600; letter-spacing:.1em; text-transform:uppercase; }
-    .switch input{ appearance:none; -webkit-appearance:none; width:30px; height:18px; margin:0; border-radius:999px; background:rgba(90,74,44,.25); position:relative; cursor:pointer; transition:background .2s; }
-    .switch input::after{ content:""; position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%; background:#fff; transition:transform .2s var(--ease); }
-    .switch input:checked{ background:#8a6a2c; }
-    .switch input:checked::after{ transform:translateX(12px); }
-    .switch input:focus-visible{ outline:2px solid #8a6a2c; outline-offset:2px; }
-    .presets.off{ opacity:.45; }
-    .tune__sep--first{ margin-top:0; padding-top:0; border-top:0; }
-    .tune__sep{ margin:.9rem 0 0; padding-top:.7rem; border-top:1px solid rgba(90,74,44,.15); font-size:.58rem; letter-spacing:.14em; text-transform:uppercase; opacity:.55; }
 
     @media (prefers-reduced-motion:reduce){ .fade{ animation:none; } }
   </style>
@@ -178,28 +197,49 @@
     <button class="tune__btn" id="tuneBtn" type="button" aria-label="Shine settings" aria-expanded="false" aria-controls="tuneMenu">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
     </button>
-    <div class="tune__menu" id="tuneMenu">
-      <p class="tune__sep tune__sep--first">Presets</p>
-      <div class="presets" id="presets"></div>
-      <div class="tune__head">
-        <p class="tune__sep">Frame light</p>
-        <label class="switch"><input type="checkbox" id="runOn"><span>On</span></label>
+    <div class="tune__menu" id="tuneMenu" role="dialog" aria-label="Shine settings">
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" type="button" data-tab="shine" aria-selected="true">Shine</button>
+        <button class="tab" role="tab" type="button" data-tab="frame" aria-selected="false">Frame</button>
       </div>
-      <div class="presets" id="patterns"></div>
-      <details class="fine">
-      <summary class="tune__sep">Fine-tune</summary>
-      <label><span class="tune__row">Shine <output data-for="strength"></output></span><input type="range" data-key="strength" min="0" max="100" step="1"></label>
-      <label><span class="tune__row">Light size <output data-for="size"></output></span><input type="range" data-key="size" min="10" max="45" step="1"></label>
-      <label><span class="tune__row">Tilt sensitivity <output data-for="sens"></output></span><input type="range" data-key="sens" min="0" max="100" step="1"></label>
-      <label><span class="tune__row">Speed <output data-for="speed"></output></span><input type="range" data-key="speed" min="2" max="30" step="1"></label>
-      <label><span class="tune__row">Band rotation <output data-for="turn"></output></span><input type="range" data-key="turn" min="0" max="100" step="1"></label>
-      <p class="tune__sep">Frame</p>
-      <label><span class="tune__row">Foil on lines <output data-for="relief"></output></span><input type="range" data-key="relief" min="0" max="100" step="1"></label>
-      <label><span class="tune__row">Edge flashes <output data-for="flash"></output></span><input type="range" data-key="flash" min="0" max="100" step="1"></label>
-      <label><span class="tune__row">Frame light brightness <output data-for="runner"></output></span><input type="range" data-key="runner" min="0" max="100" step="1"></label>
-      <label><span class="tune__row">Frame light speed <output data-for="runSpeed"></output></span><input type="range" data-key="runSpeed" min="0" max="100" step="1"></label>
-      </details>
-      <button class="tune__reset" id="tuneReset" type="button">Reset</button>
+
+      <section class="pane" data-pane="shine" role="tabpanel">
+        <div class="chips" id="presets"></div>
+        <details class="fine">
+          <summary>Fine-tune</summary>
+          <label class="slider"><span class="tune__row">Shine <output data-for="strength"></output></span><input type="range" data-key="strength" min="0" max="100" step="1"></label>
+          <label class="slider"><span class="tune__row">Light size <output data-for="size"></output></span><input type="range" data-key="size" min="10" max="45" step="1"></label>
+          <label class="slider"><span class="tune__row">Tilt sensitivity <output data-for="sens"></output></span><input type="range" data-key="sens" min="0" max="100" step="1"></label>
+          <label class="slider"><span class="tune__row">Follow speed <output data-for="speed"></output></span><input type="range" data-key="speed" min="2" max="30" step="1"></label>
+          <label class="slider"><span class="tune__row">Band rotation <output data-for="turn"></output></span><input type="range" data-key="turn" min="0" max="100" step="1"></label>
+        </details>
+      </section>
+
+      <section class="pane" data-pane="frame" role="tabpanel" hidden>
+        <div class="card">
+          <div class="card__head">
+            <div><b>Reflection</b><small>Gold foil &amp; flashes as you tilt</small></div>
+            <label class="switch"><input type="checkbox" data-toggle="reflectOn" aria-label="Frame reflection"></label>
+          </div>
+          <div class="card__body">
+            <label class="slider"><span class="tune__row">Foil on lines <output data-for="relief"></output></span><input type="range" data-key="relief" min="0" max="100" step="1"></label>
+            <label class="slider"><span class="tune__row">Edge flashes <output data-for="flash"></output></span><input type="range" data-key="flash" min="0" max="100" step="1"></label>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card__head">
+            <div><b>Moving light</b><small>Dots of light along the frame</small></div>
+            <label class="switch"><input type="checkbox" data-toggle="runOn" aria-label="Moving light"></label>
+          </div>
+          <div class="card__body">
+            <div class="chips" id="patterns"></div>
+            <label class="slider"><span class="tune__row">Brightness <output data-for="runner"></output></span><input type="range" data-key="runner" min="0" max="100" step="1"></label>
+            <label class="slider"><span class="tune__row">Speed <output data-for="runSpeed"></output></span><input type="range" data-key="runSpeed" min="0" max="100" step="1"></label>
+          </div>
+        </div>
+      </section>
+
+      <button class="tune__reset" id="tuneReset" type="button">Reset all</button>
     </div>
   </div>
 
@@ -232,8 +272,8 @@
       ];
       var settingsOf = function(p){ var o = Object.assign({}, p); delete o.name; o.preset = p.name; return o; };
       /* the running light is its own thing: presets leave it alone */
-      var DEFAULTS = Object.assign(settingsOf(PRESETS[2]), { runner: 70, runSpeed: 70, runOn: true, pattern: 'Solo' });
-      var KEY = 'wedding3-shine-v2';
+      var DEFAULTS = Object.assign(settingsOf(PRESETS[2]), { runner: 70, runSpeed: 70, runOn: true, pattern: 'Twin', reflectOn: true });
+      var KEY = 'wedding3-shine-v3';
       var cfg = Object.assign({}, DEFAULTS);
       try { Object.assign(cfg, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch(e){}
 
@@ -263,25 +303,40 @@
       var inputs = Array.prototype.slice.call(tune.querySelectorAll('input[data-key]'));
       /* frame light patterns: names only here, the motion is in framePattern() below */
       var PATTERNS = ['Solo', 'Twin', 'Comet', 'Corners in', 'Middles out', 'Cascade', 'Ping-pong', 'Corner hop', 'Sparks'];
-      var patternBox = document.getElementById('patterns'), runOn = document.getElementById('runOn');
+      var patternBox = document.getElementById('patterns');
       PATTERNS.forEach(function(name){
         var b = document.createElement('button');
-        b.type = 'button'; b.className = 'preset'; b.textContent = name;
-        b.addEventListener('click', function(){ cfg.pattern = name; cfg.runOn = true; syncInputs(); save(); });
+        b.type = 'button'; b.className = 'chip'; b.textContent = name;
+        b.addEventListener('click', function(){ cfg.pattern = name; syncInputs(); save(); });
         patternBox.appendChild(b);
       });
-      runOn.addEventListener('change', function(){ cfg.runOn = runOn.checked; syncInputs(); save(); });
+      /* on/off switches: Reflection (reflectOn) and Moving light (runOn) */
+      var toggles = Array.prototype.slice.call(tune.querySelectorAll('input[data-toggle]'));
+      toggles.forEach(function(t){
+        t.addEventListener('change', function(){ cfg[t.dataset.toggle] = t.checked; syncInputs(); save(); });
+      });
+      /* tabs */
+      var tabs = Array.prototype.slice.call(tune.querySelectorAll('.tab'));
+      tabs.forEach(function(tab){
+        tab.addEventListener('click', function(){
+          tabs.forEach(function(t){ t.setAttribute('aria-selected', t === tab); });
+          Array.prototype.forEach.call(tune.querySelectorAll('.pane'), function(p){ p.hidden = p.dataset.pane !== tab.dataset.tab; });
+        });
+      });
       var presetBox = document.getElementById('presets');
       PRESETS.forEach(function(p){
         var b = document.createElement('button');
-        b.type = 'button'; b.className = 'preset'; b.textContent = p.name;
+        b.type = 'button'; b.className = 'chip'; b.textContent = p.name;
         b.addEventListener('click', function(){ cfg = Object.assign({}, cfg, settingsOf(p)); syncInputs(); applyFoil(); save(); });
         presetBox.appendChild(b);
       });
       function syncInputs(){
         Array.prototype.forEach.call(presetBox.children, function(b){ b.setAttribute('aria-pressed', b.textContent === cfg.preset); });
-        Array.prototype.forEach.call(patternBox.children, function(b){ b.setAttribute('aria-pressed', cfg.runOn && b.textContent === cfg.pattern); });
-        runOn.checked = cfg.runOn; patternBox.classList.toggle('off', !cfg.runOn);
+        Array.prototype.forEach.call(patternBox.children, function(b){ b.setAttribute('aria-pressed', b.textContent === cfg.pattern); });
+        toggles.forEach(function(t){
+          t.checked = !!cfg[t.dataset.toggle];
+          t.closest('.card').classList.toggle('off', !t.checked);
+        });
         inputs.forEach(function(inp){
           inp.value = cfg[inp.dataset.key];
           tune.querySelector('output[data-for="' + inp.dataset.key + '"]').textContent = cfg[inp.dataset.key];
@@ -291,7 +346,8 @@
       inputs.forEach(function(inp){
         inp.addEventListener('input', function(){
           cfg[inp.dataset.key] = +inp.value;
-          if (cfg.preset){ cfg.preset = ''; syncInputs(); }       /* hand-tuned: no preset highlighted */
+          /* hand-tuning a shine setting means no preset is selected any more */
+          if (cfg.preset && inp.closest('[data-pane="shine"]')){ cfg.preset = ''; syncInputs(); }
           tune.querySelector('output[data-for="' + inp.dataset.key + '"]').textContent = inp.value;
           applyFoil(); save();
         });
@@ -511,7 +567,7 @@
             if (!ready) return;
             var r = deck.getBoundingClientRect();
             var running = rect && cfg.runOn && cfg.runner > 0 && !reduce.matches;
-            var key = running ? '' : [lx.toFixed(1), ly.toFixed(1), ang.toFixed(2), foil.v, r.width, r.height, cfg.relief, cfg.flash, cfg.size, cfg.strength].join();
+            var key = running ? '' : [lx.toFixed(1), ly.toFixed(1), ang.toFixed(2), foil.v, r.width, r.height, cfg.relief, cfg.flash, cfg.size, cfg.strength, cfg.reflectOn].join();
             if (key && key === last) return;          /* nothing moved: skip the redraw */
             last = key;
             if (palV !== foil.v) uploadPalette();
@@ -526,8 +582,8 @@
             gl.uniform1f(U.uHotA, foil.hotA);
             gl.uniform1f(U.uMidA, foil.midA);
             gl.uniform1f(U.uRad, cfg.size * Math.max(vw, vh) / 100);
-            gl.uniform1f(U.uAmt, cfg.relief / 100);
-            gl.uniform1f(U.uFlash, cfg.flash / 100);
+            gl.uniform1f(U.uAmt, cfg.reflectOn ? cfg.relief / 100 : 0);
+            gl.uniform1f(U.uFlash, cfg.reflectOn ? cfg.flash / 100 : 0);
             gl.uniform1f(U.uDist, .7 * Math.max(vw, vh));
             gl.uniform1f(U.uRunAmt, running ? cfg.runner / 100 : 0);
             if (running){
